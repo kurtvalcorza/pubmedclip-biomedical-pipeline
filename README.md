@@ -15,7 +15,7 @@ The wrapper code in this repository is MIT licensed. The model weights retain th
 
 ## Status
 
-**Candidate.** The inference contract, the adaptation contract, the pickle audit and conversion and the real pinned checkpoint have been exercised on the build workstation's CPU only (the unit and model-backed suites, and the default tutorial path through the package API — `MODEL_CARD.md` *Checkpoint Invariants*, item 10); no notebook execution has been recorded yet. The `E2E` standalone tutorial becomes Release-grade when a clean-runtime execution of the committed notebook blob is recorded in `docs/release-verification.md`. Production HTTP serving / DIMER worker packaging remains a separate serving-readiness milestone.
+**Release-grade.** The inference contract, the adaptation contract, the pickle audit and conversion and the real pinned checkpoint have been exercised on the build workstation's CPU (the unit and model-backed suites, and the default tutorial path through the package API) and — for the `E2E` standalone tutorial at blob `4b2fc4c4` — in a clean Kaggle Tesla T4 runtime on 2026-09-21 (recorded in `docs/release-verification.md`). A later notebook revision returns to Candidate until a clean-runtime execution of that exact blob is recorded. Production HTTP serving / DIMER worker packaging remains a separate serving-readiness milestone.
 
 ## Capabilities
 
@@ -88,7 +88,7 @@ The default path runs on CPU and uses CUDA automatically when present (about a m
 
 ## Release status
 
-**Candidate** — not yet executed in a clean hosted runtime. The `E2E` notebook is generated, parity-checked and unit-tested, and the default path has been run on the build workstation's CPU through the package API, but static and unit checks — including the standalone generator parity checks — are necessary, not the evidence; the hosted run is. The status becomes Release-grade when a clean Kaggle / Colab execution of the committed notebook blob is recorded in `docs/release-verification.md` and `STATUS.md`.
+**Release-grade** — the `E2E` notebook blob `4b2fc4c4` (committed at `d125896`) executed top-to-bottom in a clean Kaggle Tesla T4 runtime on 2026-09-21 (14/14 ok (1 restart after install cell), 415.1 s); the record is in `docs/release-verification.md` and `STATUS.md`. Static and unit checks — including the standalone generator parity checks — are necessary but were never the evidence; the hosted run is. A later change to the carried modules or the notebook returns the status to Candidate until re-verified.
 
 ## Score semantics
 
