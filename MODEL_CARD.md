@@ -237,4 +237,4 @@ Dataset contract (`samples.py`): records `{id, image, label}` (`id` matching `[A
 - **ROCO:** Pelka et al., *"Radiology Objects in COntext (ROCO): A Multimodal Image Dataset"*, MICCAI LABELS 2018.
 - **Hosted checkpoint:** `flaviagiammarino/pubmed-clip-vit-base-patch32` (Hugging Face Hub; the ViT-B/32 variant converted to the transformers format by the Hub author).
 - **Tutorial corpus:** Yang et al., *"MedMNIST v2 — A large-scale lightweight benchmark for 2D and 3D biomedical image classification"*, Scientific Data 10, 41 (2023), https://doi.org/10.1038/s41597-022-01721-8 — MedMNIST+ data at https://zenodo.org/records/10519652 (CC BY 4.0); OrganAMNIST source volumes: Bilic et al., *The Liver Tumor Segmentation Benchmark (LiTS)*, with organ labels from Xu et al. (2019).
-- **Fleet siblings sharing the code shape:** `siglip2-vision-language-pipeline`, `siglip-v1-zero-shot-pipeline`.
+- **Sibling pipelines in DIMER sharing the code shape:** `siglip2-vision-language-pipeline`, `siglip-v1-zero-shot-pipeline`.
