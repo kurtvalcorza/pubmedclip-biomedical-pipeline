@@ -32,7 +32,47 @@ TEMPLATE = {
     "notebook_name": "pubmedclip_biomedical_colab.ipynb",
     "profile": "E2E",
     "mode": "GUIDED",
+    # SWP-R (2026-10-05 fleet sweep): nothing is pip-installed into the notebook kernel. The fleet's uv isolated-environment
+    # mechanism (build_notebook.py/2.2): managed CPython, a size- and SHA-256-verified uv wheel, and a lock compiled from the
+    # pyproject pins with `uv pip compile pyproject.toml --python-version 3.12 --python-platform x86_64-manylinux_2_28
+    # --generate-hashes --only-binary :all: -o tutorials/requirements-colab.lock.txt` (uv 0.12.15).
+    "isolated_runtime": True,
+    "infrastructure_labels": True,
+    "managed_python": "3.12.12",
+    "uv": {
+        "version": "0.12.15",
+        "url": "https://files.pythonhosted.org/packages/1e/fd/432451d732917c49152a291de3ef171aa6b0f1a22d39780fb2c1f085ca4c/uv-0.12.15-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "bytes": 20081404,
+        "sha256": "aee9802f46bae436bd91751bb33ddeb379ef1596b5c19df193219d545d244b60",
+    },
+    "lock": "tutorials/requirements-colab.lock.txt",
     "pipeline_class": "PubMedClipPipeline",
+    "guided": {
+        "opening": [
+            '**Who this notebook is for.** The intended audience is a learner who knows basic Python, has used Colab or Jupyter, and wants to see how a biomedical '
+            'CLIP model classifies images by comparing them with text prompts, why its zero-shot scores need baselines beside them, and what a bounded fine-tuning '
+            'of its vision tower changes on a real, scan-disjoint medical-image set. No prior experience with CLIP, PubMedCLIP or medical imaging is assumed; terms '
+            'are explained where they first matter and again in the **Glossary** at the end. CPU is adequate (about a minute and a half of model time on the build '
+            'workstation, several times longer on a 2-vCPU hosted runtime); a GPU runtime is faster. Nothing here is a clinical tool.\n\n**Input → Model → Output.**\n\n| '
+            '| Zero-shot classification and retrieval | Bounded fine-tuning |\n|---|---|---|\n| Input | an image (PIL or file, sides up to 4096 px) and candidate '
+            "labels filled into a prompt | labelled images: 660 OrganAMNIST CT slices of eleven organs (396 / 88 / 176 in the dataset's own scan-level roles) |\n| "
+            "Model | PubMedCLIP ViT-B/32 image and text towers, loaded from audited, converted safetensors | the same model; only the vision tower's last two "
+            'blocks, post-layernorm and visual projection train (14.6 M of 151.3 M parameters) |\n| Output | a softmax score per candidate (relative, uncalibrated, '
+            'never abstains), cosine similarities, a retrieval ranking | accuracy, macro F1 and text-to-image mAP beside two non-neural baselines and the frozen '
+            'model, per organ, and a 58 MB safetensors adapter that reloads with parity |\n\n**How to use this notebook.** Choose a runtime (CPU works; **Runtime → '
+            "Change runtime type → T4 GPU** is faster), then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook's "
+            'own Python, so no restart is needed. Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the audited model '
+            'snapshot — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are '
+            'the only values meant to be edited, and the defaults reproduce the recorded run. Before each principal result the notebook asks you to **Predict**; '
+            'after it come **What to notice** and a collapsible **Check your reasoning** with a worked answer from the recorded run (the Kaggle Tesla T4 run of 21 '
+            'September 2026 recorded in `docs/release-verification.md`). Every adaptation starts from the pinned base, so re-running Section 7 with other settings '
+            'is a fresh experiment. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** '
+            '1–3 infrastructure → 4 the OrganAMNIST slices, their roles and refusals *(evaluation practice)* → 5 the inference contract on drawn shapes *(core '
+            "concept: relative, uncalibrated scores)* → 6 two baselines and the frozen model's zero-shot score *(evaluation practice)* → 7 bounded fine-tuning of "
+            'the vision tower *(core concept)* → 8 held-out evaluation per organ *(evaluation practice)* → 9 re-scored shapes, export and fresh reload '
+            '*(engineering)* → interpretation, troubleshooting, glossary and your conclusion.'
+        ],
+    },
     "weights_key": "pubmed-clip-vit-base-patch32",
     "modules": ["config.py", "model.py", "metrics.py", "samples.py", "pipeline.py", "provenance.py"],
     "entry_module": "config.py",
@@ -69,7 +109,8 @@ TEMPLATE = {
     ],
     "capability": "zero-shot image classification, image/text embeddings, cosine similarity, text-to-image retrieval and bounded supervised fine-tuning of the vision tower's last blocks on a labelled medical-image dataset, using the pinned `flaviagiammarino/pubmed-clip-vit-base-patch32` weights",
     "run_all": (
-        "Selecting **Run all** in a fresh supported runtime installs the pinned dependencies, stages and digest-verifies the "
+        "Selecting **Run all** in a fresh supported runtime builds an isolated environment from the hash-locked pins (nothing is "
+        "installed into the notebook's own Python, so no restart is needed and Run all completes in one pass), stages and digest-verifies the "
         "pinned `flaviagiammarino/pubmed-clip-vit-base-patch32` snapshot, audits the 605 MB `pytorch_model.bin` statically and "
         "unpickles it exactly once through torch's weights-only loader into `model.safetensors` (the only file the model is ever "
         "loaded from), fetches the 1.8 GB MedMNIST+ `organamnist_224.npz` archive from Zenodo (verified by byte size and SHA-256, "
@@ -86,8 +127,9 @@ TEMPLATE = {
         "finishes in a few minutes."
     ),
     "byod": (
-        "After the tutorial workflow completes, set `USE_BYOD = True` in Section 4 and re-run from that cell to upload one zip "
-        "holding a `labels.csv` (columns `id`, `file`, `label`) beside the image files — at least eight images over at "
+        "After the tutorial workflow completes, set `USE_BYOD = True` in Section 4 and re-run from that cell to supply one zip (or "
+        "folder) — as `BYOD_PATH` (a path in the runtime, which works on Colab, Kaggle and Jupyter) or, when it is empty, through the "
+        "Colab upload dialog — holding a `labels.csv` (columns `id`, `file`, `label`) beside the image files — at least eight images over at "
         "least two labels, the label text being what the prompt names. They pass through the same validation, seeded stratified "
         "split, baselines, fine-tuning, held-out evaluation, artifact export and reload-parity cells as the OrganAMNIST sample. "
         "The expected schema and the ceilings are stated in the Prerequisites and in Section 4, and uploaded files stay inside "
@@ -139,7 +181,7 @@ TEMPLATE = {
         "for your classes. The repository exposes none of these."
     ),
     "prerequisites": [
-        "- **Runtime:** a fresh supported runtime (Google Colab or Jupyter, Python 3.12). The default path runs on CPU (float32) and uses CUDA automatically when available. CPU is slow but adequate: the build record measured about 3.5 s to embed and score the 176 test slices and 80 s for the six epochs of fine-tuning (396 slices per epoch through the full vision tower, the last two blocks and the projection training), including the per-epoch validation scoring, so the whole default path is about a minute and a half of model time on the build workstation's CPU with the snapshot and slices already cached (a 2-vCPU hosted runtime will be several times slower); a hosted T4 finishes it in a few minutes. The pinned `torch==2.14.0` install, the 605 MB checkpoint and the 1.8 GB MedMNIST archive are the large downloads of the run.",
+        "- **Runtime:** a fresh supported runtime (Google Colab or Jupyter, Python 3.12). The default path runs on CPU (float32) and uses CUDA automatically when available. CPU is slow but adequate: the build record measured about 3.5 s to embed and score the 176 test slices and 80 s for the six epochs of fine-tuning (396 slices per epoch through the full vision tower, the last two blocks and the projection training), including the per-epoch validation scoring, so the whole default path is about a minute and a half of model time on the build workstation's CPU with the snapshot and slices already cached (a 2-vCPU hosted runtime will be several times slower); a hosted T4 finishes it in a few minutes. Building the isolated environment (the pinned `torch==2.14.0` among its packages; reused on a re-run), the 605 MB checkpoint and the 1.8 GB MedMNIST archive are the large downloads of the run.",
         "- **Knowledge:** basic Python and PIL; what a softmax score and a cosine similarity are; what accuracy, macro F1 and average precision measure and why none is a human judgement; why a high score is not a correct label — and, for medical images, why none of this is diagnostic evidence.",
         "- **Data contract:** records are `{id, image, label}` — a PIL image or a file decodable by Pillow with sides up to `MAX_IMAGE_SIDE` (4096) px and a label of at most 64 plain characters (the prompt is `DEFAULT_PROMPT_TEMPLATE` with the label, or its display name, filled in). Ids match `[A-Za-z0-9_.:-]{1,64}` and are unique; a dataset needs 8..20,000 records over 2..100 labels; the sample keeps the dataset's own roles and BYOD is split stratified per label after pixel-digest de-duplication so no image lands in two splits. BYOD accepts one zip of images plus a `labels.csv` in that shape.",
         "- **Validation is structural, not semantic:** every image is opened and decoded and every label checked, but nothing checks that a label is right or that an image is a CT slice — a mislabelled set is fine-tuned on without complaint.",
@@ -162,7 +204,9 @@ TEMPLATE = {
                 "`outputs/{stem}_train.csv` in the shape BYOD expects.\n\n"
                 "Look for: 660 slices, the eleven organs with 36 / 8 / 16 each, three digests, and four refusal probes — a "
                 "duplicate id, an image over the side ceiling, a dataset with one label and one too small to split — each "
-                "rejected before the model does anything."
+                "rejected before the model does anything.\n\n"
+                "*Evaluation practice.* **Predict before running:** the slices come from CT scans of a limited number of patients. Why "
+                "keep MedMNIST's own roles instead of shuffling the 660 slices into new splits?"
             ),
             "code": (
                 "import hashlib\n"
@@ -172,15 +216,30 @@ TEMPLATE = {
                 "import numpy as np\n"
                 "from PIL import Image\n\n"
                 "USE_BYOD = False  # @param {{type:\"boolean\"}}\n"
+                "# A .zip or a folder already in the runtime (works on Colab, Kaggle and Jupyter); empty = the Colab upload dialog.\n"
+                "BYOD_PATH = ''  # @param {{type:\"string\"}}\n"
                 "SPLIT_SEED = 42  # @param {{type:\"integer\"}}\n\n"
                 "os.makedirs('outputs', exist_ok=True)\n"
                 "if USE_BYOD:\n"
-                "    from google.colab import files\n"
-                "    uploaded = files.upload()\n"
-                "    file_name, payload = next(iter(uploaded.items()))\n"
-                "    byod_zip = Path('work') / 'byod.zip'\n"
-                "    byod_zip.parent.mkdir(parents=True, exist_ok=True)\n"
-                "    byod_zip.write_bytes(payload)\n"
+                "    if BYOD_PATH.strip():\n"
+                "        byod_zip = Path(BYOD_PATH.strip()).expanduser()\n"
+                "        if not byod_zip.exists():\n"
+                "            raise FileNotFoundError(f'BYOD_PATH {{BYOD_PATH!r}} does not exist (relative paths start at {{Path.cwd()}}): give a .zip or a folder holding labels.csv and the image files.')\n"
+                "        file_name = byod_zip.name\n"
+                "    else:\n"
+                "        try:\n"
+                "            from google.colab import files\n"
+                "        except ImportError:\n"
+                "            raise RuntimeError('USE_BYOD is True but BYOD_PATH is empty, and the upload dialog exists only in Google Colab: on Kaggle or Jupyter put the zip (or folder) in the runtime and set BYOD_PATH to its path.') from None\n"
+                "        uploaded = files.upload() or {{}}\n"
+                "        if len(uploaded) != 1:\n"
+                "            raise ValueError(f'Upload exactly one .zip file (received {{len(uploaded)}}; a cancelled dialog sends none): run this cell again.')\n"
+                "        file_name, payload = next(iter(uploaded.items()))\n"
+                "        if not file_name.lower().endswith('.zip'):\n"
+                "            raise ValueError(f'{{file_name}}: upload one .zip holding labels.csv and the image files.')\n"
+                "        byod_zip = Path('work') / 'byod.zip'\n"
+                "        byod_zip.parent.mkdir(parents=True, exist_ok=True)\n"
+                "        byod_zip.write_bytes(payload)\n"
                 "    records = load_byod_dataset(byod_zip)\n"
                 "    splits = split_dataset(records, seed=SPLIT_SEED)\n"
                 "    data_source = 'BYOD (' + file_name + ')'\n"
@@ -221,6 +280,15 @@ TEMPLATE = {
         },
         {
             "md": (
+                '**What to notice:** 660 slices, 36 / 8 / 16 per organ, the three split digests, `source_overlap`, and the four refusals.\n\n<details><summary>Check your '
+                "reasoning</summary>Neighbouring slices of one scan look almost identical. MedMNIST's authors split by scan, so keeping their roles means no scan feeds "
+                'both training and test; a fresh random split would put sister slices on both sides and make memorisation look like skill. `check_split_disjoint` also '
+                'verifies that no decoded slice appears twice. The refusals (duplicate id, oversized image, one label, too few records) stop before the model runs and '
+                'say why.</details>'
+            ),
+        },
+        {
+            "md": (
                 "## 5. Classify through the inference contract\n\n"
                 "The inference contract is exercised on three 32×32 synthetic shapes — a red square, a green circle and a blue "
                 "triangle — rendered in code as ASCII PPM files exactly as the repository's `examples/sample-data/generate_samples.py` "
@@ -231,7 +299,9 @@ TEMPLATE = {
                 "softmax score per candidate label, **ordered by descending score**; `retrieve` ranks the gallery by cosine to a "
                 "query. The per-grid `evaluation_report` on three drawn shapes is `sample-sanity` — plumbing evidence, not a "
                 "measurement, and a wrong shape here is not a defect; whether the classifier is *right* on its own modality is what "
-                "Section 6 measures on 176 slices."
+                "Section 6 measures on 176 slices.\n\n"
+                "**Predict before running:** shown a red square and the labels *red square*, *green circle*, *blue triangle* and "
+                "*abstract geometric shape*, what will the four scores add up to, and can the model answer *none of these*?"
             ),
             "code": (
                 "SAMPLE_DIGESTS = {{  # examples/sample-data/SHA256SUMS\n"
@@ -309,6 +379,14 @@ TEMPLATE = {
         },
         {
             "md": (
+                '**What to notice:** each ranking in descending order, the scores summing to 1, `checks`, and the remote-URL rejection in the input manifest.\n\n<details><summary>Check '
+                'your reasoning</summary>They sum to 1, and no. The softmax is taken over the candidates you give, so a score is relative to that list: add or remove a '
+                'label and every score moves. There is no *none of these* — the top label is returned whatever the image shows. Whether the drawings are ranked '
+                'correctly is sample-sanity only; the recorded rankings are in `docs/release-verification.md`.</details>'
+            ),
+        },
+        {
+            "md": (
                 "## 6. Baselines and the frozen model's zero-shot score on the test slices\n\n"
                 "Three systems frame the adaptation, each read three ways. The **majority floor** answers every slice with "
                 "the most frequent training label (accuracy 1/11 on a balanced split, chance-level macro F1). The **intensity "
@@ -322,7 +400,10 @@ TEMPLATE = {
                 "second prompt set built from the raw MedMNIST label tokens (`kidney-left`) in the default template is scored too, to "
                 "show how much the number is the prompt's. Expect the frozen model above the majority floor but **well below the "
                 "intensity neighbour**: the build record measured accuracy 0.18 / macro F1 0.13 / mAP 0.28 "
-                "frozen against 0.51 for the neighbour, and read the per-organ breakdown — the frozen model answers *heart* for most slices (heart recall 1.00 on an average precision of 0.25), never finds a kidney, a femur or the spleen, and only the right lung ranks well (AP 0.79)."
+                "frozen against 0.51 for the neighbour. Whether the frozen model beats the majority floor is recorded as a **verdict** "
+                "rather than asserted, so a run on your own labels continues to adaptation and export either way. Read the per-organ breakdown — the frozen model answers *heart* for most slices (heart recall 1.00 on an average precision of 0.25), never finds a kidney, a femur or the spleen, and only the right lung ranks well (AP 0.79).\n\n"
+                "*Evaluation practice.* **Predict before running:** rank the three systems — majority floor, intensity neighbour, frozen "
+                "PubMedCLIP — on accuracy."
             ),
             "code": (
                 "CT_PROMPT = 'An axial abdominal CT slice showing the {{label}}.'\n"
@@ -340,7 +421,18 @@ TEMPLATE = {
                 "plain_names = {{key: key for key in ORGANS}} if not USE_BYOD else {{}}\n"
                 "frozen_plain = pipe.evaluate(test_records, classes=classes, class_names_map=plain_names)\n"
                 "print({{'frozen_model_test_raw_label_prompts': {{k: round(frozen_plain[k], 3) for k in METRICS}}, 'prompt_template': frozen_plain['prompt_template']}})\n"
-                "assert frozen_test['t2i_map'] > baseline_majority['t2i_map'] and frozen_test['accuracy'] > baseline_majority['accuracy']"
+                "# SWP-A: a quality comparison is a recorded verdict, not an assert, so a BYOD run still reaches adaptation and export.\n"
+                "frozen_vs_majority = {{m: 'above' if frozen_test[m] > baseline_majority[m] else 'not above' for m in ('accuracy', 't2i_map')}}\n"
+                "print({{'verdict_frozen_vs_majority_floor': frozen_vs_majority}})"
+            ),
+        },
+        {
+            "md": (
+                '**What to notice:** the three systems on accuracy, macro F1 and mAP, the frozen per-organ recall and AP, the raw-label prompt score, and the verdict line.\n\n<details><summary>Check '
+                'your reasoning</summary>Neighbour first, frozen model second, majority floor last. In the recorded run accuracy was 0.511 for the intensity neighbour, '
+                '0.182 for the frozen model and 0.091 for the majority floor (macro F1 0.502 / 0.131 / 0.015; mAP 0.519 / 0.284 / 0.119). Nine mean intensities beat a '
+                'caption-trained model because organs sit at fixed positions in axial CT; the frozen model mostly answers *heart*. The raw-label prompts scored a '
+                "different mAP (0.34): the number is partly the prompt's.</details>"
             ),
         },
         {
@@ -360,7 +452,10 @@ TEMPLATE = {
                 "climbs: 396 slices are few, but the organs are visually separable and the frozen model started far from the "
                 "task, so the selector's job is to stop before the last blocks memorise the training slices. The build record kept "
                 "epoch 4 of six (validation mAP 0.36 frozen → 0.76); the default is the "
-                "configuration that gained on the held-out split."
+                "configuration that gained on the held-out split. Every call starts from the pinned base (`started_from` in the "
+                "printed result), so a re-run with other settings is a fresh experiment, not continued training, and epoch 0 is always "
+                "the frozen model.\n\n"
+                "**Predict before running:** will the epoch with the lowest training loss be the one kept?"
             ),
             "code": (
                 "EPOCHS = 6  # @param {{type:\"integer\"}}\n"
@@ -377,7 +472,15 @@ TEMPLATE = {
                 "t0 = time.perf_counter()\n"
                 "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=LEARNING_RATE, batch_size=BATCH_SIZE, trainable_vision_layers=TRAINABLE_VISION_LAYERS, prompt_template=CT_PROMPT, class_names_map=display_names, progress=report)\n"
                 "adapt_seconds = round(time.perf_counter() - t0, 1)\n"
-                "print({{'trainable_parameters': adapt_result['n_trainable'], 'total_parameters': adapt_result['n_total'], 'classes': adapt_result['classes'], 'best_epoch': adapt_result['best_epoch'], 'selection': adapt_result['selection'], 'seconds': adapt_seconds}})"
+                "print({{'trainable_parameters': adapt_result['n_trainable'], 'total_parameters': adapt_result['n_total'], 'classes': adapt_result['classes'], 'best_epoch': adapt_result['best_epoch'], 'selection': adapt_result['selection'], 'started_from': adapt_result['started_from'], 'seconds': adapt_seconds}})"
+            ),
+        },
+        {
+            "md": (
+                '**What to notice:** epoch 0 (`note: frozen model`), the training loss against `val_t2i_map` per epoch, `best_epoch`, and `selection`.\n\n<details><summary>Check '
+                'your reasoning</summary>No. The training loss keeps falling to the last epoch, but the selector keeps the epoch with the highest validation mAP — in '
+                'the build record epoch 4 of six (validation mAP 0.36 → 0.76). After that the last blocks start to memorise the 396 training slices; validation, not '
+                'training loss, says when to stop.</details>'
             ),
         },
         {
@@ -390,10 +493,12 @@ TEMPLATE = {
                 "prompts, so a gain that carries to a prompt set it never saw is the more general one). Read it in this order: "
                 "**text-to-image mAP** first (the metric the epoch was selected on — the build record measured 0.28 → "
                 "0.65), then accuracy and macro F1 (0.18 → 0.81 and 0.13 → 0.81), "
-                "then the per-organ recall, where every organ but the heart gained recall (liver and pancreas to 1.00, both lungs to 0.94, the spleen 0.00 → 0.81) while the left / right pairs stayed the weakest — the right kidney at 0.38, the right femur's AP at 0.51 — and the heart lost the recall it had only as the default answer. The cell asserts the adapted mAP is above the frozen one. "
+                "then the per-organ recall, where every organ but the heart gained recall (liver and pancreas to 1.00, both lungs to 0.94, the spleen 0.00 → 0.81) while the left / right pairs stayed the weakest — the right kidney at 0.38, the right femur's AP at 0.51 — and the heart lost the recall it had only as the default answer. The cell records whether the adapted mAP is above the frozen one as a **verdict** (`improved`, `no change` or `worse`) in the report and `result.json` instead of asserting it, so a run on your own images that does not improve still exports and reloads. "
                 "One hundred and seventy-six slices from one seeded run give **no dispersion estimate**; the deltas are sample-sanity "
                 "evidence that the adaptation contract works, not a benchmark, and a gain on eleven abdominal organs says nothing "
-                "about your classes — or about any clinical use — until you measure them."
+                "about your classes — or about any clinical use — until you measure them.\n\n"
+                "*Evaluation practice.* **Predict before running:** after fine-tuning, will the adapted model pass the intensity "
+                "neighbour (0.51 accuracy)? Will its gain carry over to the raw-label prompts it was never tuned with?"
             ),
             "code": (
                 "adapted_test = pipe.evaluate(test_records, classes=classes, class_names_map=display_names, prompt_template=CT_PROMPT)\n"
@@ -403,6 +508,9 @@ TEMPLATE = {
                 "comparison = {{metric: {{'majority': round(baseline_majority[metric], 3), 'neighbour': round(baseline_neighbour[metric], 3), 'frozen': round(frozen_test[metric], 3), 'adapted': round(adapted_test[metric], 3)}} for metric in METRICS}}\n"
                 "comparison['delta_vs_frozen'] = {{metric: round(adapted_test[metric] - frozen_test[metric], 3) for metric in METRICS}}\n"
                 "comparison['raw_label_prompts'] = {{metric: {{'frozen': round(frozen_plain[metric], 3), 'adapted': round(adapted_plain[metric], 3)}} for metric in METRICS}}\n"
+                "delta_map = adapted_test['t2i_map'] - frozen_test['t2i_map']\n"
+                "# SWP-A: the direction is a recorded verdict, not an assert, so a BYOD run always reaches export, reload and result.json.\n"
+                "comparison['verdict'] = {{'adapted_vs_frozen_t2i_map': 'improved' if delta_map > 0 else ('no change' if delta_map == 0 else 'worse'), 'frozen_vs_majority_floor': frozen_vs_majority}}\n"
                 "comparison['by_organ'] = {{c: {{'n': frozen_fields[c]['n'], 'frozen_recall': frozen_fields[c]['recall'], 'adapted_recall': adapted_fields[c]['recall'], 'frozen_ap': frozen_fields[c]['ap'], 'adapted_ap': adapted_fields[c]['ap']}} for c in classes}}\n"
                 "for key, row in comparison.items():\n"
                 "    print({{key: row}})\n"
@@ -427,8 +535,16 @@ TEMPLATE = {
                 "}}\n"
                 "with open('outputs/{stem}_evaluation_report.json', 'w', encoding='utf-8') as f:\n"
                 "    json.dump(evaluation_report_payload, f, indent=2, ensure_ascii=False)\n"
-                "assert adapted_test['t2i_map'] > frozen_test['t2i_map']\n"
                 "print({{'report': 'outputs/{stem}_evaluation_report.json'}})"
+            ),
+        },
+        {
+            "md": (
+                '**What to notice:** the four systems on the three metrics, `delta_vs_frozen`, the raw-label prompt rows, the per-organ table, and the `verdict`.\n\n<details><summary>Check '
+                'your reasoning</summary>Yes and yes, in the recorded run. Accuracy went 0.182 → 0.812 (neighbour 0.511), macro F1 0.131 → 0.81, mAP 0.284 → 0.654, and '
+                'the verdict was *improved*. On the raw-label prompts it was never tuned with, mAP rose 0.34 → 0.815: the vision tower, not a prompt, learned the '
+                'organs. The left / right pairs stay the weakest. One seeded run on 176 slices has no dispersion estimate, and none of this is clinical '
+                'evidence.</details>'
             ),
         },
         {
@@ -481,6 +597,7 @@ TEMPLATE = {
                 "    'corpus': {{'name': CORPUS_NAME, 'release': CORPUS_RELEASE, 'license': CORPUS_LICENSE, 'url': CORPUS_URL, 'archive_bytes': CORPUS_ARCHIVE_BYTES, 'archive_sha256': CORPUS_ARCHIVE_SHA256, 'pinned_slices': len(SAMPLE_RECORDS), 'organs': {{k: list(v) for k, v in ORGANS.items()}}}},\n"
                 "    'inference_contract': {{'input_manifest': input_manifest, 'sanity_checks': checks, 'shapes': {{'names': [p.name for p in shape_images], 'sha256': shape_sha256, 'labels': shape_labels, 'candidate_labels': candidate_labels}}, 'frozen_report': frozen_scene, 'adapted_report': adapted_scene}},\n"
                 "    'comparison': comparison,\n"
+                "    'verdict': comparison['verdict'],\n"
                 "    'artifact': {{'dir': str(artifact_dir), 'sha256': artifact_manifest['files'][0]['sha256'], 'bytes': artifact_manifest['files'][0]['bytes'], 'tensors': len(artifact_manifest['tensors'])}},\n"
                 "    'reload_parity': parity,\n"
                 "    'runtime': {{'python': platform.python_version(), 'torch': torch.__version__, 'transformers': transformers.__version__, 'numpy': numpy.__version__, 'device': str(pipe.device), 'dtype': 'float32', 'checkpoint_source': pipe.checkpoint_source}},\n"
@@ -488,6 +605,14 @@ TEMPLATE = {
                 "with open('outputs/{stem}_result.json', 'w', encoding='utf-8') as handle:\n"
                 "    json.dump(result_payload, handle, indent=2, ensure_ascii=False)\n"
                 "print(sorted(os.listdir('outputs')))"
+            ),
+        },
+        {
+            "md": (
+                "**What to notice:** the frozen and adapted top-2 labels for each drawing, the artifact's size and tensor count, and `reload_parity`.\n\n<details><summary>Check "
+                'your reasoning</summary>A changed ranking on the drawings is a finding, not a failure: tuning the vision tower on CT slices can move how it sees '
+                'anything else, and three images are evidence, not a measurement. In the recorded run the adapter reloaded into a fresh pipeline with identical '
+                'embeddings on all eight test slices (`max_abs_difference` 0.0, 8 of 8 rows).</details>'
             ),
         },
     ],
@@ -527,6 +652,38 @@ TEMPLATE = {
         "artifact size and the held-out mAP; raise `EPOCHS` and watch the validation mAP pick the epoch while the training "
         "loss keeps falling; change `LEARNING_RATE` to `1e-5` and read a smaller, steadier gain; or bring your own images "
         "through BYOD and read the two baselines before the adapted number.\n\n"
+        '## Troubleshooting\n\n- **Section 1 stops with "This notebook needs a Linux x86_64 runtime"** — you are on Windows, macOS or an ARM machine. Use Google '
+        'Colab, Kaggle or a Linux x86_64 Jupyter server.\n- **The uv wheel fails its size/SHA-256 check, or a download in Section 1 times out** — run Section 1 '
+        'again; a complete environment built from the same lock is reused, an incomplete one is finished. If it repeats, the network is blocking or altering '
+        '`files.pythonhosted.org` or `pypi.org`.\n- **"The isolated environment\'s Python process exited"** — usually out of memory. Restart the session and '
+        'choose **Run all**.\n- **You re-ran Section 1 on its own** — nothing is lost: it keeps the running worker and every variable, so the cells after it '
+        'keep working. After a session restart, run from the top.\n- **Section 3 reports a size or SHA-256 mismatch, or cannot reach the Hub** — the message '
+        "names the file. Delete it from the snapshot folder Section 3 prints and run Section 3 again.\n- **Section 4 is slow or stops on the archive's size or "
+        'SHA-256** — the 1.8 GB Zenodo download was cut short or altered. Run Section 4 again; slices already extracted and verified are reused from `weights/organamnist/slices/`.\n- '
+        '**Section 3 reports a pickle-audit refusal** — the audit allows the four state-dict globals only and names any other; the downloaded '
+        '`pytorch_model.bin` is not the pinned one. Delete it and run Section 3 again.\n- **Section 7 is very slow** — you are on a 2-vCPU CPU runtime; switch '
+        'to a T4 GPU, or lower `EPOCHS` for a quick look (the numbers will differ from the recorded run).\n- **BYOD: "BYOD zip must contain labels.csv" or a '
+        'label/size refusal** — the message names the rule: a `labels.csv` with columns `id`, `file`, `label`, at least eight images over at least two labels, '
+        'sides up to 4096 px.\n- **BYOD: "BYOD_PATH … does not exist"** — the path is relative to the working directory printed in the message.\n- **BYOD: "the '
+        'upload dialog exists only in Google Colab"** — on Kaggle or Jupyter, put the zip (or folder) in the runtime and set `BYOD_PATH` to its path.\n- **BYOD: '
+        '"Upload exactly one .zip file"** — the dialog was cancelled or several files were chosen; run the cell again.\n\n## Glossary\n\n- **CLIP / PubMedCLIP:** a '
+        'pair of encoders, one for images and one for text, trained so matching image–caption pairs have similar embeddings; PubMedCLIP is CLIP fine-tuned on '
+        'radiology figures and their captions.\n- **Zero-shot classification:** naming an image by comparing it with a text prompt for each candidate label, '
+        'with no training on those labels.\n- **Prompt template:** the sentence a label is filled into (`An axial abdominal CT slice showing the {{label}}.`); '
+        'the classifier is the prompt as much as the model.\n- **Softmax score:** the scores over the candidates, summing to 1; relative to the candidate list, '
+        'not calibrated probabilities, and the model never abstains.\n- **Cosine similarity / embedding:** the angle between two vectors the encoders produce; '
+        'the basis of every score here.\n- **Accuracy, macro F1:** the share of slices whose top prompt is right; the F1 averaged over the eleven organs so each '
+        'counts equally.\n- **Text-to-image mAP:** each organ prompt ranks all test slices; the average precision of its own organ, averaged over organs — the '
+        'retrieval view.\n- **Majority floor / intensity neighbour:** two non-neural baselines — always answer the most frequent label; answer with the label of '
+        'the training slice whose 3 × 3 mean-intensity grid is closest.\n- **Scan-disjoint split:** no CT scan contributes slices to two roles, so neighbouring '
+        'slices cannot leak between training and test.\n- **Frozen / adapted / pinned base:** the packaged model; the model after Section 7; the verified '
+        'packaged weights every adaptation starts from (`restore_base`).\n- **Pickle audit / safetensors:** the upstream checkpoint is a pickle that could run '
+        'code when loaded; it is statically checked and converted once to safetensors, a format that stores only tensors.\n- **Isolated environment:** the '
+        'separate Python environment Section 1 builds from the hash lock; every later cell runs there.\n\n## Conclusion (your notes)\n\nComplete these in your own '
+        "words; the recorded run's values are in the **Check your reasoning** answers above.\n\n- On the 176 test slices the frozen model scored accuracy ___ "
+        "against the intensity neighbour's ___ and the majority floor's ___.\n- Fine-tuning two vision blocks moved text-to-image mAP from ___ to ___ (verdict: "
+        '___); the organs that stayed hardest were ___.\n- The number I would not trust on its own is ___, because ___.\n- Before using this on my own images I '
+        'would split by ___, compare against ___, and remember that none of it is clinical evidence.\n\n'
         "## References\n\n"
         "- Repository README: https://github.com/kurtvalcorza/pubmedclip-biomedical-pipeline/blob/main/README.md\n"
         "- Repository model card: https://github.com/kurtvalcorza/pubmedclip-biomedical-pipeline/blob/main/MODEL_CARD.md\n"
