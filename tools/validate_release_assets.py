@@ -1,6 +1,6 @@
 """Static release-asset validation for the PubMedCLIP biomedical zero-shot (E2E) DIMER pipeline.
 
-Checks the STANDALONE tutorial notebook (DIMER Notebook Specification 2.0 §4), the tutorial
+Checks the STANDALONE tutorial notebook (DIMER Notebook Specification 2.2 §4), the tutorial
 registry, model card, README, STATUS.md and weight documentation for source conformance and
 cross-document identity consistency, and runs the generator parity checks (PAR1–PAR3).
 
@@ -72,12 +72,16 @@ CODE_MARKERS = (
     "baseline_majority = majority_baseline(train_records, test_records, classes)",
     "baseline_neighbour = colour_neighbour_baseline(train_records, test_records, classes)",
     "CT_PROMPT = 'An axial abdominal CT slice showing the {label}.'",
-    "frozen_test = pipe.evaluate(test_records, classes=classes, class_names_map=display_names, prompt_template=CT_PROMPT)",
+    "PROMPT_TEMPLATE = CT_PROMPT if not USE_BYOD else (BYOD_PROMPT_TEMPLATE.strip() or DEFAULT_PROMPT_TEMPLATE)",
+    "restored = pipe.restore_base()",
+    "split_mode = byod_split_mode(records)",
+    "comparison['ap_fell'] = sorted(",
+    "frozen_test = pipe.evaluate(test_records, classes=classes, class_names_map=display_names, prompt_template=PROMPT_TEMPLATE)",
     "frozen_plain = pipe.evaluate(test_records, classes=classes, class_names_map=plain_names)",
     "frozen_vs_majority = {m: 'above' if frozen_test[m] > baseline_majority[m] else 'not above' for m in ('accuracy', 't2i_map')}",
-    "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=LEARNING_RATE, batch_size=BATCH_SIZE, trainable_vision_layers=TRAINABLE_VISION_LAYERS, prompt_template=CT_PROMPT, class_names_map=display_names, progress=report)",
-    "adapted_test = pipe.evaluate(test_records, classes=classes, class_names_map=display_names, prompt_template=CT_PROMPT)",
-    "adapted_val = pipe.evaluate(val_records, classes=classes, class_names_map=display_names, prompt_template=CT_PROMPT)",
+    "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=LEARNING_RATE, batch_size=BATCH_SIZE, trainable_vision_layers=TRAINABLE_VISION_LAYERS, prompt_template=PROMPT_TEMPLATE, class_names_map=display_names, progress=report)",
+    "adapted_test = pipe.evaluate(test_records, classes=classes, class_names_map=display_names, prompt_template=PROMPT_TEMPLATE)",
+    "adapted_val = pipe.evaluate(val_records, classes=classes, class_names_map=display_names, prompt_template=PROMPT_TEMPLATE)",
     "comparison['verdict'] = {'adapted_vs_frozen_t2i_map': 'improved' if delta_map > 0 else ('no change' if delta_map == 0 else 'worse'), 'frozen_vs_majority_floor': frozen_vs_majority}",
     "'verdict': comparison['verdict']",
     "adapted_scene = evaluation_report({'classifications': adapted_classifications, 'retrievals': adapted_retrievals, 'gallery_ids': [p.name for p in shape_images]}, targets, sample_kind='synthetic')",
@@ -154,10 +158,10 @@ INSTALL_CELL_MARKER = "# dimer: kernel cell"
 # ---------------------------------------------------------------------------
 # Shared checks. Everything below is source/structure validation only. Passing
 # these checks is NOT clean-runtime execution evidence under DIMER Notebook
-# Specification 2.0; see docs/release-verification.md for the release gate.
+# Specification 2.2; see docs/release-verification.md for the release gate.
 # ---------------------------------------------------------------------------
 
-NOTEBOOK_SPEC = "2.0"
+NOTEBOOK_SPEC = "2.2"
 ALLOWED_PROFILES = {"E2E", "ARTIFACT-INFERENCE", "TASK-INFERENCE", "MULTI-CAPABILITY", "SMOKE"}
 STATUS_TOKENS = ("Candidate", "Release-grade")
 PLACEHOLDER = re.compile(r"\b(TODO|TBD|FIXME)\b|Insert text here|Tooltip:", re.I)

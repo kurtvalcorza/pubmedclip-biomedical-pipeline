@@ -50,7 +50,11 @@ def _per_class(pred: np.ndarray, gold: np.ndarray, n_classes: int) -> dict[str, 
 
 
 def average_precision(scores: Sequence[float], relevant: Sequence[bool]) -> float:
-    """AP of ranking `scores` descending against binary relevance (0 when nothing is relevant)."""
+    """AP of ranking `scores` descending against binary relevance (0 when nothing is relevant).
+
+    Tied scores form one threshold (precision and recall are read only after the whole tie), so the
+    result never depends on the order of the records: an all-tie column (the majority floor's one-hot
+    grid) scores exactly its prevalence. Without ties this equals the usual sum of precision@hit."""
     scores_arr = np.asarray(scores, dtype=np.float64)
     rel = np.asarray(relevant, dtype=bool)
     if scores_arr.shape != rel.shape or scores_arr.ndim != 1:
@@ -58,12 +62,15 @@ def average_precision(scores: Sequence[float], relevant: Sequence[bool]) -> floa
     if not rel.any():
         return 0.0
     order = np.argsort(-scores_arr, kind="stable")
-    hits, total = 0, 0.0
-    for rank, index in enumerate(order, start=1):
-        if rel[index]:
-            hits += 1
-            total += hits / rank
-    return total / int(rel.sum())
+    ranked, hits = scores_arr[order], np.cumsum(rel[order])
+    ends = np.r_[np.flatnonzero(np.diff(ranked)), len(ranked) - 1]  # last position of each tie group
+    n_relevant = int(rel.sum())
+    total, previous = 0.0, 0
+    for end in ends:
+        if hits[end] > previous:
+            total += (hits[end] - previous) * hits[end] / (end + 1)
+            previous = int(hits[end])
+    return total / n_relevant
 
 
 def classification_metrics(

@@ -149,9 +149,15 @@ def test_swp_g_checkpoint_answers_quote_the_recorded_run(notebook):
 
 
 def test_swp_a_no_model_quality_assert_remains(notebook):
+    # PMC-M3 (row 71) refines SWP-A: the two quality checks stay, but only on the pinned sample (`if not USE_BYOD:`).
     code = "\n".join(_source(c) for c in _code_cells(notebook) if not c["metadata"].get("dimer", {}).get("embedded_module"))
-    asserts = [line.strip() for line in code.splitlines() if line.strip().startswith("assert ")]
-    assert asserts == ["assert parity['identical_rows'] == parity['of']"]
+    lines = code.splitlines()
+    quality = [i for i, line in enumerate(lines) if line.strip().startswith("assert ") and ("baseline_majority" in line or "delta_map" in line)]
+    assert len(quality) == 2
+    for i in quality:
+        assert lines[i - 1].strip().startswith("if not USE_BYOD:"), lines[i - 1]
+    others = [line.strip() for i, line in enumerate(lines) if line.strip().startswith("assert ") and i not in quality]
+    assert others == [others[0], "assert parity['identical_rows'] == parity['of']"] and "role_groups" in others[0]
 
 
 def _scores(acc: float, t2i: float) -> dict:
@@ -161,7 +167,7 @@ def _scores(acc: float, t2i: float) -> dict:
 def test_swp_a_section_6_records_frozen_vs_majority_without_stopping(notebook):
     source = _cell(notebook, "frozen_vs_majority = ")
     snippet = source[source.index("frozen_vs_majority = ") :]
-    namespace = {"frozen_test": _scores(0.05, 0.1), "baseline_majority": _scores(0.09, 0.12)}
+    namespace = {"frozen_test": _scores(0.05, 0.1), "baseline_majority": _scores(0.09, 0.12), "USE_BYOD": True}
     exec(compile(snippet, "<section 6 verdict>", "exec"), namespace)
     assert namespace["frozen_vs_majority"] == {"accuracy": "not above", "t2i_map": "not above"}
 
@@ -174,7 +180,7 @@ def test_swp_a_section_8_records_the_verdict_and_writes_the_report(notebook, tmp
     frozen = _scores(0.2, 0.3)
     namespace = {
         "json": json, "pipe": types.SimpleNamespace(evaluate=lambda records, **kw: _scores(0.5, adapted_map)), "test_records": [], "val_records": [],
-        "classes": ["a", "b"], "display_names": {}, "plain_names": {}, "CT_PROMPT": "p {label}", "METRICS": ("accuracy", "macro_f1", "t2i_map"),
+        "classes": ["a", "b"], "display_names": {}, "plain_names": {}, "CT_PROMPT": "p {label}", "PROMPT_TEMPLATE": "p {label}", "USE_BYOD": True, "METRICS": ("accuracy", "macro_f1", "t2i_map"),
         "baseline_majority": _scores(0.1, 0.1), "baseline_neighbour": _scores(0.5, 0.5), "frozen_test": frozen, "frozen_plain": frozen,
         "frozen_fields": {c: {"n": 2, "recall": 0.2, "ap": 0.3} for c in ("a", "b")}, "frozen_vs_majority": {"accuracy": "above", "t2i_map": "above"},
         "MODEL_ID": "m", "MODEL_REVISION": "r", "DEFAULT_MODEL_KEY": "k", "data_source": "stand-in", "dataset_manifests": {}, "disjoint": {},
@@ -251,7 +257,7 @@ def _byod_namespace(path: str) -> dict:
     loaded = []
     return {
         "USE_BYOD": True, "BYOD_PATH": path, "Path": Path, "loaded": loaded, "SPLIT_SEED": 42,
-        "load_byod_dataset": lambda p: loaded.append(Path(p)) or ["r"],
+        "load_byod_dataset": lambda p: loaded.append(Path(p)) or ["r"], "byod_split_mode": lambda records: "stratified shuffle",
         "split_dataset": lambda records, seed: {"train": records, "validation": records, "test": records},
     }
 

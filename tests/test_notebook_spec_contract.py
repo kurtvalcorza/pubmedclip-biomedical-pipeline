@@ -35,7 +35,7 @@ def test_release_notebook_declares_e2e_profile() -> None:
     notebook = _load_notebook()
     dimer = notebook["metadata"]["dimer"]
     assert dimer["notebook_profile"] == "E2E"
-    assert dimer["notebook_spec"] == "2.0"
+    assert dimer["notebook_spec"] == "2.2"
     assert dimer["standalone"] is True  # NOTEBOOK_SPEC 2.0 §4; parity in test_notebook_parity.py
 
     registry = REGISTRY.read_text(encoding="utf-8")
@@ -78,7 +78,7 @@ def test_release_notebook_exercises_the_adaptation_contract() -> None:
         "disjoint = check_split_disjoint(splits)",
         "baseline_majority = majority_baseline(train_records, test_records, classes)",
         "baseline_neighbour = colour_neighbour_baseline(train_records, test_records, classes)",
-        "frozen_test = pipe.evaluate(test_records, classes=classes, class_names_map=display_names, prompt_template=CT_PROMPT)",  # noqa: E501
+        "frozen_test = pipe.evaluate(test_records, classes=classes, class_names_map=display_names, prompt_template=PROMPT_TEMPLATE)",  # noqa: E501
         "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=LEARNING_RATE,",
         "comparison['verdict'] = {'adapted_vs_frozen_t2i_map': 'improved'",  # SWP-A verdict
         "pipe.save_artifact(artifact_dir,",
