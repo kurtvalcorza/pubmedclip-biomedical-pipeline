@@ -294,7 +294,7 @@ def test_byod_directory_zip_round_trip_and_rejections(tmp_path):
         archive.writestr("x.txt", "x")
     with pytest.raises(ValueError, match="labels.csv"):
         load_byod_dataset(tmp_path / "nolabels.zip")
-    with pytest.raises(ValueError, match="directory or a .zip"):
+    with pytest.raises(ValueError, match="not a zip archive"):  # PMC-m2: names the file and the fix
         load_byod_dataset(tmp_path / "labels.csv")
 
 

@@ -727,6 +727,10 @@ SAMPLE_RECORDS: tuple[tuple[str, str, str, int, str], ...] = (
 SAMPLE_SEED = 42
 SAMPLE_SPLIT = {"train": 36, "validation": 8, "test": 16}  # per organ, from the dataset's own splits; 11 organs -> 396 / 88 / 176
 MIN_RECORDS = 8
+# The smallest BYOD set the default stratified split accepts: two labels of six images (each label keeps one test
+# and one validation image, so 12 leaves the 8 training records MIN_RECORDS asks for; 8 images would leave 4).
+BYOD_MIN_RECORDS = 12
+BYOD_SPLIT_ROLES = {"train": "train", "validation": "validation", "val": "validation", "test": "test"}
 MAX_RECORDS = 20_000
 MIN_CLASSES = 2
 MAX_CLASSES = 100
@@ -912,6 +916,8 @@ def _check_record(record: Any, index: int) -> dict[str, Any]:
         "medmnist_class",
         "medmnist_split",
         "medmnist_index",
+        "group",
+        "split",
     ):
         if key in record:
             item[key] = record[key]
@@ -1006,6 +1012,15 @@ def source_overlap(splits: Mapping[str, Sequence[Mapping[str, Any]]]) -> dict[st
     }
 
 
+def byod_split_mode(records: Sequence[Mapping[str, Any]]) -> str:
+    """How `split_dataset` assigns roles: 'split column', 'group column' or 'stratified shuffle'."""
+    if any(str(r.get("split", "") or "").strip() for r in records):
+        return "split column"
+    if any(str(r.get("group", "") or "").strip() for r in records):
+        return "group column"
+    return "stratified shuffle"
+
+
 def split_dataset(
     records: Sequence[Mapping[str, Any]],
     *,
@@ -1013,7 +1028,13 @@ def split_dataset(
     test_fraction: float = 0.2,
     seed: int = 0,
 ) -> dict[str, list[dict[str, Any]]]:
-    """Seeded stratified shuffle of a BYOD dataset into train/validation/test after de-duplicating images."""
+    """Split a BYOD dataset into train/validation/test after de-duplicating images by decoded pixels.
+
+    - A `split` value (train / validation / val / test) on the records is used as given.
+    - Otherwise a `group` value (patient, scan, session...) keeps every group in one role: groups are shuffled with
+      the seed and given to test, then validation, until each holds about its fraction of the records.
+    - Otherwise a seeded stratified shuffle per label.
+    `byod_split_mode` names the mode that applies."""
     if not (
         0.0 <= val_fraction < 1.0
         and 0.0 < test_fraction < 1.0
@@ -1022,58 +1043,173 @@ def split_dataset(
         raise ValueError("fractions must satisfy 0 <= val < 1, 0 < test < 1, val + test < 1")
     checked = validate_dataset(records)["records"]
     seen: set[str] = set()
-    by_label: dict[str, list[dict[str, Any]]] = {}
+    unique: list[dict[str, Any]] = []
     for record in checked:
         key = image_digest(record["image"])
         if key not in seen:
             seen.add(key)
-            by_label.setdefault(record["label"], []).append(record)
+            unique.append(record)
+    mode = byod_split_mode(unique)
     rng = random.Random(seed)
     splits: dict[str, list[dict[str, Any]]] = {"test": [], "validation": [], "train": []}
-    for label in sorted(by_label):
-        pool = by_label[label]
-        rng.shuffle(pool)
-        n_test = max(1, round(len(pool) * test_fraction))
-        n_val = round(len(pool) * val_fraction)
-        splits["test"].extend(pool[:n_test])
-        splits["validation"].extend(pool[n_test : n_test + n_val])
-        splits["train"].extend(pool[n_test + n_val :])
+    if mode == "split column":
+        for record in unique:
+            value = str(record.get("split", "") or "").strip().lower()
+            if value not in BYOD_SPLIT_ROLES:
+                raise ValueError(
+                    f"record {record['id']!r}: split must be train, validation, val or test when labels.csv "
+                    f"has a split column (got {value!r}); fill the column for every row"
+                )
+            splits[BYOD_SPLIT_ROLES[value]].append(record)
+        if not splits["test"]:
+            raise ValueError("the split column gives no record the test role; mark some rows test")
+    elif mode == "group column":
+        groups: dict[str, list[dict[str, Any]]] = {}
+        for record in unique:
+            group = str(record.get("group", "") or "").strip()
+            if not group:
+                raise ValueError(
+                    f"record {record['id']!r} has an empty group; give every row a group (patient, scan or session)"
+                )
+            groups.setdefault(group, []).append(record)
+        if len(groups) < 3:
+            raise ValueError(
+                f"the group column names {len(groups)} group(s); at least 3 are needed so train, validation "
+                "and test each get their own"
+            )
+        names = sorted(groups)
+        rng.shuffle(names)
+        index = 0
+        for role, fraction in (("test", test_fraction), ("validation", val_fraction)):
+            goal = len(unique) * fraction
+            while fraction > 0 and index < len(names) - 1 and (
+                not splits[role] or len(splits[role]) + len(groups[names[index]]) / 2 <= goal
+            ):
+                splits[role].extend(groups[names[index]])
+                index += 1
+        for name in names[index:]:
+            splits["train"].extend(groups[name])
+        in_role = {role: {str(r["group"]) for r in part} for role, part in splits.items()}
+        shared = (
+            (in_role["train"] & in_role["test"])
+            | (in_role["train"] & in_role["validation"])
+            | (in_role["validation"] & in_role["test"])
+        )
+        if shared:  # cannot happen by construction; the contract checks it anyway
+            raise ValueError(f"groups in two roles: {sorted(shared)[:5]}")
+    else:
+        by_label: dict[str, list[dict[str, Any]]] = {}
+        for record in unique:
+            by_label.setdefault(record["label"], []).append(record)
+        for label in sorted(by_label):
+            pool = by_label[label]
+            rng.shuffle(pool)
+            n_test = max(1, round(len(pool) * test_fraction))
+            n_val = round(len(pool) * val_fraction)
+            splits["test"].extend(pool[:n_test])
+            splits["validation"].extend(pool[n_test : n_test + n_val])
+            splits["train"].extend(pool[n_test + n_val :])
     for part in splits.values():
         rng.shuffle(part)
     if len(splits["train"]) < MIN_RECORDS:
         raise ValueError(
-            f"split leaves {len(splits['train'])} training records; at least {MIN_RECORDS} are required"
+            f"split leaves {len(splits['train'])} training records; at least {MIN_RECORDS} are required: add "
+            f"images (a stratified split of two labels needs at least {BYOD_MIN_RECORDS}, six per label) or give "
+            "more of them the train role"
         )
     return splits
 
 
+def _byod_error(message: str) -> ValueError:
+    return ValueError(f"BYOD: {message}")
+
+
 def load_byod_dataset(path: str | Path) -> list[dict[str, Any]]:
     """Read `{id, image, label}` records from a directory or a zip holding `labels.csv` (columns `id`, `file`,
-    `label`) beside the image files; images are decoded, never extracted to disk."""
+    `label`, optional `group` or `split`) beside the image files; images are decoded, never extracted to disk.
+
+    `file` is a path relative to the folder holding `labels.csv` (`images/a.png` works). A bare file name is
+    accepted when exactly one file has that name; two files with one name in different folders must be named by
+    their path. Every failure is a ValueError naming the file and the fix."""
     source = Path(path)
     if source.is_dir():
-        table = (source / "labels.csv").read_text(encoding="utf-8")
-        loader = lambda name: Image.open(source / name)  # noqa: E731
-    elif source.is_file() and source.suffix.lower() == ".zip":
+        root = source.resolve()
+        if not (root / "labels.csv").is_file():
+            raise _byod_error(f"{source} has no labels.csv; put labels.csv (id, file, label) beside the images")
+        table_bytes = (root / "labels.csv").read_bytes()
+        files = {q.relative_to(root).as_posix(): q for q in root.rglob("*") if q.is_file()}
+        base = ""
+
+        def read(member: str) -> bytes:
+            return files[member].read_bytes()
+
+    elif source.is_file():
+        if not zipfile.is_zipfile(source):
+            raise _byod_error(
+                f"{source.name} is not a zip archive; give a .zip (or a folder) holding labels.csv and the images"
+            )
         archive = zipfile.ZipFile(source)
-        members = {Path(n).name: n for n in archive.namelist()}
-        if "labels.csv" not in members:
-            raise ValueError("BYOD zip must contain labels.csv")
-        table = archive.read(members["labels.csv"]).decode("utf-8")
-        loader = lambda name: Image.open(io.BytesIO(archive.read(members[name])))  # noqa: E731
+        files = {n: n for n in archive.namelist() if not n.endswith("/") and not n.startswith("__MACOSX/")}
+        tables = [n for n in files if n.rsplit("/", 1)[-1] == "labels.csv"]
+        if len(tables) != 1:
+            raise _byod_error(
+                f"{source.name} must contain exactly one labels.csv (found {len(tables)}); put labels.csv "
+                "(id, file, label) beside the images"
+            )
+        table_bytes = archive.read(tables[0])
+        base = tables[0][: -len("labels.csv")]
+
+        def read(member: str) -> bytes:
+            return archive.read(member)
+
     else:
-        raise ValueError(
-            "BYOD datasets must be a directory or a .zip holding labels.csv and the image files"
-        )
+        raise _byod_error(f"{source} does not exist; give a .zip or a folder holding labels.csv and the images")
+    try:
+        table = table_bytes.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise _byod_error("labels.csv is not UTF-8 text; save it as UTF-8 CSV") from exc
     rows = list(csv.DictReader(io.StringIO(table)))
     missing = {"id", "file", "label"} - set(rows[0].keys() if rows else set())
     if missing:
-        raise ValueError(f"labels.csv is missing columns {sorted(missing)}")
+        raise _byod_error(f"labels.csv is missing columns {sorted(missing)} (it needs id, file, label)")
+    by_name: dict[str, list[str]] = {}
+    for member in files:
+        if member.startswith(base):
+            by_name.setdefault(member.rsplit("/", 1)[-1], []).append(member)
     out = []
-    for row in rows:
-        image = loader(row["file"])
-        image.load()
-        out.append({"id": row["id"], "image": image.convert("RGB"), "label": row["label"]})
+    for line, row in enumerate(rows, start=2):
+        name = (row.get("file") or "").strip().replace("\\", "/")
+        if not name or name.startswith("/") or ".." in name.split("/"):
+            raise _byod_error(
+                f"labels.csv line {line}: file {name!r} must be a path inside the dataset (no leading / or ..)"
+            )
+        member = base + name
+        if member not in files:
+            candidates = by_name.get(name, []) if "/" not in name else []
+            if len(candidates) > 1:
+                raise _byod_error(
+                    f"labels.csv line {line}: {name!r} matches {len(candidates)} files "
+                    f"({', '.join(sorted(candidates)[:3])}); write its path instead, e.g. "
+                    f"{sorted(candidates)[0][len(base):]!r}"
+                )
+            if len(candidates) != 1:
+                raise _byod_error(
+                    f"labels.csv line {line}: file {name!r} is not in the dataset; check the name and its folder"
+                )
+            member = candidates[0]
+        try:
+            image = Image.open(io.BytesIO(read(member)))
+            image.load()
+        except (OSError, SyntaxError, ValueError) as exc:  # PIL's UnidentifiedImageError is an OSError
+            raise _byod_error(
+                f"labels.csv line {line}: {name!r} is not an image Pillow can decode ({type(exc).__name__}); "
+                "remove the row or replace the file"
+            ) from exc
+        record = {"id": row["id"], "image": image.convert("RGB"), "label": row["label"]}
+        for key in ("group", "split"):
+            if (row.get(key) or "").strip():
+                record[key] = row[key].strip()
+        out.append(record)
     return out
 
 

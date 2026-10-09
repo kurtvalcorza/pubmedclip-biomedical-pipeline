@@ -1,6 +1,6 @@
 """Static release-asset validation for the PubMedCLIP biomedical zero-shot (E2E) DIMER pipeline.
 
-Checks the STANDALONE tutorial notebook (DIMER Notebook Specification 2.0 §4), the tutorial
+Checks the STANDALONE tutorial notebook (DIMER Notebook Specification 2.2 §4), the tutorial
 registry, model card, README, STATUS.md and weight documentation for source conformance and
 cross-document identity consistency, and runs the generator parity checks (PAR1–PAR3).
 
@@ -49,6 +49,8 @@ CODE_MARKERS = (
     "corpus = read_corpus(corpus_files)",
     "splits = build_sample_dataset(corpus, seed=SPLIT_SEED)",
     "records = load_byod_dataset(byod_zip)",
+    "BYOD_PATH = ''",
+    "uploaded = files.upload() or {}",
     "splits = split_dataset(records, seed=SPLIT_SEED)",
     "dataset_manifests = {name: validate_dataset(part) for name, part in splits.items()}",
     "disjoint = check_split_disjoint(splits)",
@@ -70,13 +72,18 @@ CODE_MARKERS = (
     "baseline_majority = majority_baseline(train_records, test_records, classes)",
     "baseline_neighbour = colour_neighbour_baseline(train_records, test_records, classes)",
     "CT_PROMPT = 'An axial abdominal CT slice showing the {label}.'",
-    "frozen_test = pipe.evaluate(test_records, classes=classes, class_names_map=display_names, prompt_template=CT_PROMPT)",
+    "PROMPT_TEMPLATE = CT_PROMPT if not USE_BYOD else (BYOD_PROMPT_TEMPLATE.strip() or DEFAULT_PROMPT_TEMPLATE)",
+    "restored = pipe.restore_base()",
+    "split_mode = byod_split_mode(records)",
+    "comparison['ap_fell'] = sorted(",
+    "frozen_test = pipe.evaluate(test_records, classes=classes, class_names_map=display_names, prompt_template=PROMPT_TEMPLATE)",
     "frozen_plain = pipe.evaluate(test_records, classes=classes, class_names_map=plain_names)",
-    "assert frozen_test['t2i_map'] > baseline_majority['t2i_map'] and frozen_test['accuracy'] > baseline_majority['accuracy']",
-    "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=LEARNING_RATE, batch_size=BATCH_SIZE, trainable_vision_layers=TRAINABLE_VISION_LAYERS, prompt_template=CT_PROMPT, class_names_map=display_names, progress=report)",
-    "adapted_test = pipe.evaluate(test_records, classes=classes, class_names_map=display_names, prompt_template=CT_PROMPT)",
-    "adapted_val = pipe.evaluate(val_records, classes=classes, class_names_map=display_names, prompt_template=CT_PROMPT)",
-    "assert adapted_test['t2i_map'] > frozen_test['t2i_map']",
+    "frozen_vs_majority = {m: 'above' if frozen_test[m] > baseline_majority[m] else 'not above' for m in ('accuracy', 't2i_map')}",
+    "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=LEARNING_RATE, batch_size=BATCH_SIZE, trainable_vision_layers=TRAINABLE_VISION_LAYERS, prompt_template=PROMPT_TEMPLATE, class_names_map=display_names, progress=report)",
+    "adapted_test = pipe.evaluate(test_records, classes=classes, class_names_map=display_names, prompt_template=PROMPT_TEMPLATE)",
+    "adapted_val = pipe.evaluate(val_records, classes=classes, class_names_map=display_names, prompt_template=PROMPT_TEMPLATE)",
+    "comparison['verdict'] = {'adapted_vs_frozen_t2i_map': 'improved' if delta_map > 0 else ('no change' if delta_map == 0 else 'worse'), 'frozen_vs_majority_floor': frozen_vs_majority}",
+    "'verdict': comparison['verdict']",
     "adapted_scene = evaluation_report({'classifications': adapted_classifications, 'retrievals': adapted_retrievals, 'gallery_ids': [p.name for p in shape_images]}, targets, sample_kind='synthetic')",
     "pipe.save_artifact(artifact_dir, metadata={'tutorial': 'pubmedclip_biomedical', 'data_source': data_source})",
     "reloaded = PubMedClipPipeline.from_artifact(artifact_dir, weights_dir=WEIGHTS_DIR, device=pipe.device)",
@@ -144,15 +151,17 @@ FORBIDDEN_OUTSIDE_MODULE = (
     "subprocess.run([",
     "extractall(",
 )
-INSTALL_CELL_MARKER = "subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', *PINS], check=True)"
+# The one kernel cell (generator /2.2 isolated runtime): it builds the hash-locked environment and routes every later
+# cell to it, so it is the one place `subprocess.run([` and `urllib.request` belong.
+INSTALL_CELL_MARKER = "# dimer: kernel cell"
 
 # ---------------------------------------------------------------------------
 # Shared checks. Everything below is source/structure validation only. Passing
 # these checks is NOT clean-runtime execution evidence under DIMER Notebook
-# Specification 2.0; see docs/release-verification.md for the release gate.
+# Specification 2.2; see docs/release-verification.md for the release gate.
 # ---------------------------------------------------------------------------
 
-NOTEBOOK_SPEC = "2.0"
+NOTEBOOK_SPEC = "2.2"
 ALLOWED_PROFILES = {"E2E", "ARTIFACT-INFERENCE", "TASK-INFERENCE", "MULTI-CAPABILITY", "SMOKE"}
 STATUS_TOKENS = ("Candidate", "Release-grade")
 PLACEHOLDER = re.compile(r"\b(TODO|TBD|FIXME)\b|Insert text here|Tooltip:", re.I)
@@ -190,9 +199,12 @@ COMMON_CODE_MARKERS = (
     "PINS = [",
     "NOTEBOOK_SOURCE = {",
     "SKIP_INSTALL = os.environ.get('DIMER_NOTEBOOK_CI_PREINSTALLED') == '1'",
-    "subprocess.run([sys.executable, '-m', 'pip', 'install', '-q', *PINS], check=True)",
-    "importlib.metadata.packages_distributions()",
-    "importlib.invalidate_caches()",
+    # SWP-R (2026-10-05 fleet sweep): the generator /2.2 isolated runtime replaces the in-kernel pinned install.
+    "'--require-hashes', '--only-binary', ':all:'",
+    "'--managed-python'",
+    "if len(wheel) != UV_BYTES or hashlib.sha256(wheel).hexdigest() != UV_SHA256:",
+    "if hashlib.sha256(LOCK_TEXT.encode('utf-8')).hexdigest() != LOCK_SHA256:",
+    "_ip.input_transformers_cleanup.append(_route_to_isolated_runtime)",
     "platform.python_version()",
     "torch.__version__",
     "MANIFEST = {",
@@ -635,18 +647,14 @@ def _validate_parity(path: Path, notebook: dict, code_cells: list[tuple[int, str
 
 
 def _validate_bootstrap_guard(path: Path, code_cells: list[tuple[int, str, ast.Module]]) -> None:
-    """The stale-import guard must actually raise: `if stale:` whose body raises RuntimeError."""
-    raises = False
-    for _, _, tree in code_cells:
-        for node in ast.walk(tree):
-            if isinstance(node, ast.If) and isinstance(node.test, ast.Name) and node.test.id == "stale":
-                for sub in ast.walk(node):
-                    if isinstance(sub, ast.Raise) and isinstance(sub.exc, ast.Call):
-                        func = sub.exc.func
-                        if isinstance(func, ast.Name) and func.id == "RuntimeError":
-                            raises = True
-    _check(raises, f"{path.name}: install cell must raise RuntimeError when already-imported packages change")
-
+    """RUN1/RUN10/ENV6 (SWP-R, 2026-10-05 fleet sweep): nothing is pip-installed into the kernel and no cell asks for a
+    restart. Exactly one cell runs in the kernel (the isolated-environment bootstrap); it reuses a matching environment."""
+    kernel = [source for _, source, _ in code_cells if INSTALL_CELL_MARKER in source]
+    _check(len(kernel) == 1, f"{path.name}: exactly one '{INSTALL_CELL_MARKER}' bootstrap cell is required, found {len(kernel)}")
+    code = "\n".join(source for _, source, _ in code_cells)
+    _check("'-m', 'pip', 'install'" not in code and "pip install" not in code, f"{path.name}: no cell may pip-install into the notebook kernel (RUN10)")
+    _check("Restart the runtime" not in code, f"{path.name}: no cell may ask for a runtime restart (RUN1)")
+    _check("_isolated_environment_ready()" in kernel[0], f"{path.name}: the bootstrap cell must reuse a matching isolated environment")
 
 def _validate_notebook_content(
     path: Path, code_cells: list[tuple[int, str, ast.Module]], markdown: str, embedded: list[int]
