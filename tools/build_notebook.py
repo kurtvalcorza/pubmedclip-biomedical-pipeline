@@ -41,7 +41,7 @@ from pathlib import Path
 from typing import Any
 
 GENERATOR_VERSION = "build_notebook.py/2.2"
-NOTEBOOK_SPEC = "2.2"
+NOTEBOOK_SPEC = "2.5"
 
 # ST2: default rewrite rule; a template may replace it with its own `rewrites` list. Every rule must
 # match exactly once across the embedded modules, so a silent no-op is impossible.
@@ -317,6 +317,10 @@ while True:
         _send.send(("done",))
     except BaseException as exc:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
+        if getattr(exc, "dimer_refusal", False):
+            # A refused user input (DAT20): one actionable message, no traceback; genuine failures keep theirs.
+            _send.send(("refusal", str(exc)))
+            continue
         frames = exc.__traceback__.tb_next if exc.__traceback__ is not None else None
         _send.send(("error", "".join(traceback.format_exception(type(exc), exc, frames)), f"{type(exc).__name__}: {exc}"))
 """
@@ -324,6 +328,13 @@ while True:
 
 class IsolatedCellError(RuntimeError):
     """A routed cell raised inside the isolated environment; its traceback is printed above."""
+
+
+class IsolatedCellRefusal(Exception):
+    """A routed cell refused a user input (for example a BYOD upload); shown as its message alone, with no traceback."""
+
+    def _render_traceback_(self):
+        return [str(self)]
 
 
 class IsolatedRuntime:
@@ -380,6 +391,8 @@ class IsolatedRuntime:
                 self._display(message[1], raw=True)
             elif kind == "upload":
                 self._send.send(("upload", self._colab_upload()))
+            elif kind == "refusal":
+                raise IsolatedCellRefusal(message[1]) from None
             elif kind == "error":
                 sys.stderr.write(message[1])
                 raise IsolatedCellError(message[2]) from None
@@ -474,6 +487,8 @@ def template_contract() -> dict[str, str]:
         "lock": "OPTIONAL (required with isolated_runtime): repository-relative hash-locked requirements compiled from the pins",
         "infrastructure_labels": "OPTIONAL bool (default False): label the setup, carrier and snapshot sections Infrastructure and collapse their cells (NOTEBOOK_SPEC 2.2 GDL11)",
         "guided": "OPTIONAL {'opening': [markdown cells inserted after the header]} (NOTEBOOK_SPEC 2.2 GDL1-GDL4)",
+        "notebook_kind": "OPTIONAL str: the NOTEBOOK_SPEC 2.5 KND1 kind (e.g. TUTORIAL), shown in the header and the metadata",
+        "use_notice": "OPTIONAL markdown: the NOTEBOOK_SPEC 2.5 DOC17-DOC19 use notice, placed in the header cell before the first code cell",
         "external_access": "OPTIONAL replacement for the text of the generated External access bullet, for a default path that also reaches hosts other than the model host; may use {MODEL_ID}, {MODEL_REVISION}, {total_mb:.0f}",
     }
 
@@ -849,9 +864,11 @@ def render(repo: Path, template: dict[str, Any], revision: str | None = None) ->
     )
     header = (
         f"# {template['title']}\n\n{badges}\n\n"
-        f"**Profile:** `{template['profile']}`  \n"
+        + (f"{template['use_notice'].strip()}\n\n" if template.get("use_notice") else "")
+        + f"**Profile:** `{template['profile']}`  \n"
         f"**Mode:** `{mode}`  \n"
-        f"**Notebook specification:** DIMER Notebook Specification {NOTEBOOK_SPEC} — **standalone** (§4)  \n"
+        + (f"**Kind:** `{template['notebook_kind']}`  \n" if template.get("notebook_kind") else "")
+        + f"**Notebook specification:** DIMER Notebook Specification {NOTEBOOK_SPEC} — **standalone** (§4)  \n"
         f"**Capability:** {template['capability']}\n\n"
         f"**This notebook is standalone.** It carries {carried}, the pinned model identity and the per-file SHA-256 manifest in Section 3, "
         f"and the exact runtime pins in Section 1, so it keeps working after export even if the repository changes or disappears. Its only "
@@ -1066,6 +1083,7 @@ def render(repo: Path, template: dict[str, Any], revision: str | None = None) ->
                 "notebook_profile": template["profile"],
                 "notebook_mode": mode,
                 "notebook_spec": NOTEBOOK_SPEC,
+                **({"notebook_kind": template["notebook_kind"]} if template.get("notebook_kind") else {}),
                 "standalone": True,
                 **({"environment": "isolated hash-locked uv environment; nothing installed into the kernel"} if isolated else {}),
                 "generated_from": {

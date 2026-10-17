@@ -25,3 +25,6 @@ weights/*.gguf
 
 # The MedMNIST archive and the extracted slices are fetched at run time and digest-verified; never committed
 weights/organamnist/
+
+# Runtime scratch the notebook writes (BYOD upload, the parked adapter in Section 8)
+work/

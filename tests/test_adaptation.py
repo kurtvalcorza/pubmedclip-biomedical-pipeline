@@ -86,7 +86,20 @@ def test_pinned_corpus_constants():
     assert all(len(r[4]) == 64 and isinstance(r[3], int) and r[3] >= 0 for r in SAMPLE_RECORDS)
     assert len({(r[2], r[3]) for r in SAMPLE_RECORDS}) == 660  # distinct slices
     assert len({r[4] for r in SAMPLE_RECORDS}) == 660  # distinct pixel digests
-    assert SAMPLE_SPLIT == {"train": 36, "validation": 8, "test": 16}
+    assert SAMPLE_SPLIT == {"train": 36, "validation": 32, "exposed_dev_test": 16, "test": 16}
+    # R71-s1 = A and the fresh test (docs/pubmedclip-preregistration.md): 352 new val pins, 176 new test pins
+    new = sm.VALIDATION_RECORDS + sm.FRESH_TEST_RECORDS
+    assert len(sm.VALIDATION_RECORDS) == 352 and len(sm.FRESH_TEST_RECORDS) == 176
+    for organ in ORGANS:
+        assert sum(1 for r in sm.VALIDATION_RECORDS if r[1] == organ and r[2] == "val") == 32
+        assert sum(1 for r in sm.FRESH_TEST_RECORDS if r[1] == organ and r[2] == "test") == 16
+    old = {(r[2], r[3]) for r in SAMPLE_RECORDS}
+    assert not old & {(r[2], r[3]) for r in new}  # never-used val, never-scored test
+    digests = [r[4] for r in SAMPLE_RECORDS + new]
+    assert len(set(digests)) == len(digests) == 1188  # pixel-distinct across every pin
+    tutorial = sm.tutorial_records()
+    assert len(tutorial) == 1100 and not any(r[2] == "val" and r in SAMPLE_RECORDS for r in tutorial)
+    assert len(sm.pin_manifest_digest()) == 64
     assert sm.CORPUS_ARCHIVE_BYTES > 1_000_000_000 and len(sm.CORPUS_ARCHIVE_SHA256) == 64
     assert {ORGANS[k][1] for k in ORGANS} == set(range(11))
 
@@ -122,6 +135,7 @@ def _fake_archive(monkeypatch):
     np.savez(buffer, **arrays)
     data = buffer.getvalue()
     monkeypatch.setattr(sm, "SAMPLE_RECORDS", tuple(pins))
+    monkeypatch.setattr(sm, "tutorial_records", lambda: sm.SAMPLE_RECORDS)
     monkeypatch.setattr(sm, "CORPUS_ARCHIVE_BYTES", len(data))
     monkeypatch.setattr(sm, "CORPUS_ARCHIVE_SHA256", hashlib.sha256(data).hexdigest())
     return data, pins

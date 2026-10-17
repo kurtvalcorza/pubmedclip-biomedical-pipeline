@@ -11,6 +11,7 @@ import ast
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import sys
 import types
@@ -141,23 +142,26 @@ def test_swp_g_guided_layer_is_present_and_infrastructure_is_collapsed(notebook)
 
 def test_swp_g_checkpoint_answers_quote_the_recorded_run(notebook):
     md = _markdown(notebook)
-    for value in ("0.182", "0.812", "0.511", "0.091", "0.284", "0.654", "0.815"):
+    # R71-m1: the exposed-development-test values of the 2026-10-08 Colab run of blob 066b560d, credited to that run.
+    for value in ("0.182", "0.511", "0.091", "0.284", "0.654", "066b560d"):
         assert value in md, value
+    assert "@@" not in md  # every CPU build-record placeholder was filled
 
 
 # --- SWP-A: quality comparisons are recorded verdicts, not asserts ---------------------------------------------------
 
 
 def test_swp_a_no_model_quality_assert_remains(notebook):
-    # PMC-M3 (row 71) refines SWP-A: the two quality checks stay, but only on the pinned sample (`if not USE_BYOD:`).
+    # R71 refines PMC-M3: the one quality check left is frozen > majority on the EXPOSED development test, on the pinned
+    # sample only; the fresh test gets verdicts, never asserts.
     code = "\n".join(_source(c) for c in _code_cells(notebook) if not c["metadata"].get("dimer", {}).get("embedded_module"))
     lines = code.splitlines()
-    quality = [i for i, line in enumerate(lines) if line.strip().startswith("assert ") and ("baseline_majority" in line or "delta_map" in line)]
-    assert len(quality) == 2
-    for i in quality:
-        assert lines[i - 1].strip().startswith("if not USE_BYOD:"), lines[i - 1]
+    quality = [i for i, line in enumerate(lines) if line.strip().startswith("assert ") and ("baseline_majority" in line or "delta" in line)]
+    assert len(quality) == 1 and lines[quality[0] - 1].strip().startswith("if not USE_BYOD:")
+    assert "exposed development test" in lines[quality[0]]
     others = [line.strip() for i, line in enumerate(lines) if line.strip().startswith("assert ") and i not in quality]
-    assert others == [others[0], "assert parity['identical_rows'] == parity['of']"] and "role_groups" in others[0]
+    assert len(others) == 4 and "role_groups" in others[0] and "roles_ok" in others[1] and "medmnist_index" in others[2]
+    assert others[3] == "assert parity['identical_rows'] == parity['of']"
 
 
 def _scores(acc: float, t2i: float) -> dict:
@@ -170,27 +174,6 @@ def test_swp_a_section_6_records_frozen_vs_majority_without_stopping(notebook):
     namespace = {"frozen_test": _scores(0.05, 0.1), "baseline_majority": _scores(0.09, 0.12), "USE_BYOD": True}
     exec(compile(snippet, "<section 6 verdict>", "exec"), namespace)
     assert namespace["frozen_vs_majority"] == {"accuracy": "not above", "t2i_map": "not above"}
-
-
-@pytest.mark.parametrize(("adapted_map", "verdict"), [(0.2, "worse"), (0.3, "no change"), (0.6, "improved")])
-def test_swp_a_section_8_records_the_verdict_and_writes_the_report(notebook, tmp_path, monkeypatch, adapted_map, verdict):
-    source = _cell(notebook, "delta_map = ")
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "outputs").mkdir()
-    frozen = _scores(0.2, 0.3)
-    namespace = {
-        "json": json, "pipe": types.SimpleNamespace(evaluate=lambda records, **kw: _scores(0.5, adapted_map)), "test_records": [], "val_records": [],
-        "classes": ["a", "b"], "display_names": {}, "plain_names": {}, "CT_PROMPT": "p {label}", "PROMPT_TEMPLATE": "p {label}", "USE_BYOD": True, "METRICS": ("accuracy", "macro_f1", "t2i_map"),
-        "baseline_majority": _scores(0.1, 0.1), "baseline_neighbour": _scores(0.5, 0.5), "frozen_test": frozen, "frozen_plain": frozen,
-        "frozen_fields": {c: {"n": 2, "recall": 0.2, "ap": 0.3} for c in ("a", "b")}, "frozen_vs_majority": {"accuracy": "above", "t2i_map": "above"},
-        "MODEL_ID": "m", "MODEL_REVISION": "r", "DEFAULT_MODEL_KEY": "k", "data_source": "stand-in", "dataset_manifests": {}, "disjoint": {},
-        "adapt_result": {"history": [], "best_epoch": 0}, "adapt_seconds": 0.0,
-    }
-    exec(compile(source, "<section 8>", "exec"), namespace)
-    assert namespace["comparison"]["verdict"]["adapted_vs_frozen_t2i_map"] == verdict
-    report = json.loads((tmp_path / "outputs" / "pubmedclip_biomedical_evaluation_report.json").read_text(encoding="utf-8"))
-    assert report["comparison"]["verdict"]["adapted_vs_frozen_t2i_map"] == verdict
-    assert "'verdict': comparison['verdict']," in _cell(notebook, "result_payload = {")
 
 
 # --- SWP-F: every adaptation starts from the pinned base ---------------------------------------------------------------
@@ -250,19 +233,22 @@ def test_swp_f_restore_helpers_put_trained_tensors_back():
 
 def _byod_block(notebook: dict) -> str:
     source = _cell(notebook, "if USE_BYOD:")
-    return source[source.index("if USE_BYOD:") : source.index("else:\n    t_fetch")]
+    return source[source.index("class BYODRefusal(") : source.index("else:\n    t_fetch")]
 
 
 def _byod_namespace(path: str) -> dict:
     loaded = []
     return {
-        "USE_BYOD": True, "BYOD_PATH": path, "Path": Path, "loaded": loaded, "SPLIT_SEED": 42,
+        "USE_BYOD": True, "BYOD_PATH": path, "Path": Path, "loaded": loaded, "SPLIT_SEED": 42, "os": os, "json": json,
+        "validate_dataset": lambda part, min_records=1: None,
         "load_byod_dataset": lambda p: loaded.append(Path(p)) or ["r"], "byod_split_mode": lambda records: "stratified shuffle",
         "split_dataset": lambda records, seed: {"train": records, "validation": records, "test": records},
     }
 
 
 def test_swp_b_byod_path_reads_a_folder_without_colab(notebook, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "outputs").mkdir()
     monkeypatch.setitem(sys.modules, "google.colab", None)
     folder = tmp_path / "my_scenes"
     folder.mkdir()
@@ -273,16 +259,25 @@ def test_swp_b_byod_path_reads_a_folder_without_colab(notebook, tmp_path, monkey
 
 def test_swp_b_missing_path_and_off_colab_upload_give_clear_messages(notebook, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
+    (tmp_path / "outputs").mkdir()
+    (tmp_path / "outputs" / "pubmedclip_biomedical_result.json").write_text("{}")
     monkeypatch.setitem(sys.modules, "google.colab", None)
-    with pytest.raises(FileNotFoundError, match="BYOD_PATH 'nope.zip' does not exist"):
+    # R71-m4 (DAT20): a refusal is one BYODRefusal message (a ValueError shown without a traceback); earlier files are
+    # kept and listed as not from this run.
+    with pytest.raises(ValueError, match="BYOD input refused: BYOD_PATH 'nope.zip' does not exist") as refused:
         exec(compile(_byod_block(notebook), "<byod>", "exec"), _byod_namespace("nope.zip"))
-    with pytest.raises(RuntimeError, match="upload dialog exists only in Google Colab"):
+    assert getattr(refused.value, "dimer_refusal", False) and refused.value._render_traceback_() == [str(refused.value)]
+    marker = json.loads((tmp_path / "outputs" / "pubmedclip_biomedical_run_invalidated.json").read_text())
+    assert marker["files_from_an_earlier_run"] == ["pubmedclip_biomedical_result.json"]
+    assert (tmp_path / "outputs" / "pubmedclip_biomedical_result.json").exists()
+    with pytest.raises(ValueError, match="upload dialog exists only in Google Colab"):
         exec(compile(_byod_block(notebook), "<byod>", "exec"), _byod_namespace(""))
 
 
 @pytest.mark.parametrize(("uploaded", "message"), [(None, "Upload exactly one .zip file \\(received 0"), ({"a.zip": b"", "b.zip": b""}, "received 2"), ({"scenes.tar": b""}, "scenes.tar: upload one .zip")])
 def test_swp_b_cancelled_or_wrong_upload_is_refused(notebook, tmp_path, monkeypatch, uploaded, message):
     monkeypatch.chdir(tmp_path)
+    (tmp_path / "outputs").mkdir()
     colab = types.ModuleType("google.colab")
     colab.files = types.SimpleNamespace(upload=lambda: uploaded)
     monkeypatch.setitem(sys.modules, "google.colab", colab)

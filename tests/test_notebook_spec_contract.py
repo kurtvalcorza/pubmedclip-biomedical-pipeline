@@ -35,7 +35,7 @@ def test_release_notebook_declares_e2e_profile() -> None:
     notebook = _load_notebook()
     dimer = notebook["metadata"]["dimer"]
     assert dimer["notebook_profile"] == "E2E"
-    assert dimer["notebook_spec"] == "2.2"
+    assert dimer["notebook_spec"] == "2.5"
     assert dimer["standalone"] is True  # NOTEBOOK_SPEC 2.0 §4; parity in test_notebook_parity.py
 
     registry = REGISTRY.read_text(encoding="utf-8")
@@ -76,11 +76,13 @@ def test_release_notebook_exercises_the_adaptation_contract() -> None:
         "corpus_files = fetch_corpus(cache_dir='weights/organamnist')",
         "splits = build_sample_dataset(corpus, seed=SPLIT_SEED)",
         "disjoint = check_split_disjoint(splits)",
-        "baseline_majority = majority_baseline(train_records, test_records, classes)",
-        "baseline_neighbour = colour_neighbour_baseline(train_records, test_records, classes)",
-        "frozen_test = pipe.evaluate(test_records, classes=classes, class_names_map=display_names, prompt_template=PROMPT_TEMPLATE)",  # noqa: E501
-        "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=LEARNING_RATE,",
-        "comparison['verdict'] = {'adapted_vs_frozen_t2i_map': 'improved'",  # SWP-A verdict
+        "baseline_majority = majority_baseline(train_records, dev_records, classes)",
+        "baseline_neighbour = colour_neighbour_baseline(train_records, dev_records, classes)",
+        "frozen_test = pipe.evaluate(dev_records, classes=classes, class_names_map=display_names, prompt_template=PROMPT_TEMPLATE)",  # noqa: E501
+        "grid_selection = select_config(",  # R71-M1: the pre-registered grid on validation
+        "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=lr_used,",
+        "table['verdict'] = {'adapted_vs_frozen_t2i_map': 'improved'",  # SWP-A verdict
+        "differing = settings_differing(run_settings, grid_selection)",  # R71-M3 / SCORE_ONCE_RULE
         "pipe.save_artifact(artifact_dir,",
         "reloaded = PubMedClipPipeline.from_artifact(artifact_dir, weights_dir=WEIGHTS_DIR, device=pipe.device)",  # noqa: E501
         "assert parity['identical_rows'] == parity['of']",

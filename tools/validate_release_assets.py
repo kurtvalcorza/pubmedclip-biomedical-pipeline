@@ -52,7 +52,7 @@ CODE_MARKERS = (
     "BYOD_PATH = ''",
     "uploaded = files.upload() or {}",
     "splits = split_dataset(records, seed=SPLIT_SEED)",
-    "dataset_manifests = {name: validate_dataset(part) for name, part in splits.items()}",
+    "dataset_manifests = {name: validate_dataset(part, min_records=1 if name != 'train' else MIN_RECORDS) for name, part in splits.items()}",
     "disjoint = check_split_disjoint(splits)",
     "'source_overlap': source_overlap(splits)",
     "classes = class_names(train_records)",
@@ -69,20 +69,20 @@ CODE_MARKERS = (
     "shape_embeddings = pipe.embed_image(shape_images)",
     "targets = {'labels': shape_labels, 'retrieval_indices': list(range(len(shape_images)))}",
     "frozen_scene = evaluation_report(result, targets, sample_kind='synthetic')",
-    "baseline_majority = majority_baseline(train_records, test_records, classes)",
-    "baseline_neighbour = colour_neighbour_baseline(train_records, test_records, classes)",
-    "CT_PROMPT = 'An axial abdominal CT slice showing the {label}.'",
+    "baseline_majority = majority_baseline(train_records, dev_records, classes)",
+    "baseline_neighbour = colour_neighbour_baseline(train_records, dev_records, classes)",
+    "grid_selection = select_config({n: r['best_val_t2i_map'] for n, r in grid_results.items()}, frozen_val_map)",  # R71-M1
     "PROMPT_TEMPLATE = CT_PROMPT if not USE_BYOD else (BYOD_PROMPT_TEMPLATE.strip() or DEFAULT_PROMPT_TEMPLATE)",
     "restored = pipe.restore_base()",
     "split_mode = byod_split_mode(records)",
-    "comparison['ap_fell'] = sorted(",
-    "frozen_test = pipe.evaluate(test_records, classes=classes, class_names_map=display_names, prompt_template=PROMPT_TEMPLATE)",
-    "frozen_plain = pipe.evaluate(test_records, classes=classes, class_names_map=plain_names)",
+    "table['ap_fell'] = sorted(",
+    "frozen_test = pipe.evaluate(dev_records, classes=classes, class_names_map=display_names, prompt_template=PROMPT_TEMPLATE)",
+    "frozen_plain = pipe.evaluate(dev_records, classes=classes, class_names_map=plain_names)",
     "frozen_vs_majority = {m: 'above' if frozen_test[m] > baseline_majority[m] else 'not above' for m in ('accuracy', 't2i_map')}",
-    "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=LEARNING_RATE, batch_size=BATCH_SIZE, trainable_vision_layers=TRAINABLE_VISION_LAYERS, prompt_template=PROMPT_TEMPLATE, class_names_map=display_names, progress=report)",
-    "adapted_test = pipe.evaluate(test_records, classes=classes, class_names_map=display_names, prompt_template=PROMPT_TEMPLATE)",
+    "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=lr_used, batch_size=BATCH_SIZE, trainable_vision_layers=layers_used, prompt_template=PROMPT_TEMPLATE, class_names_map=display_names, seed=ADAPT_SEED, progress=report)",
+    "differing = settings_differing(run_settings, grid_selection)",  # R71-M3 (SCORE_ONCE_RULE)
     "adapted_val = pipe.evaluate(val_records, classes=classes, class_names_map=display_names, prompt_template=PROMPT_TEMPLATE)",
-    "comparison['verdict'] = {'adapted_vs_frozen_t2i_map': 'improved' if delta_map > 0 else ('no change' if delta_map == 0 else 'worse'), 'frozen_vs_majority_floor': frozen_vs_majority}",
+    "table['verdict'] = {'adapted_vs_frozen_t2i_map': 'improved' if delta > 0 else ('no change' if delta == 0 else 'worse')}",
     "'verdict': comparison['verdict']",
     "adapted_scene = evaluation_report({'classifications': adapted_classifications, 'retrievals': adapted_retrievals, 'gallery_ids': [p.name for p in shape_images]}, targets, sample_kind='synthetic')",
     "pipe.save_artifact(artifact_dir, metadata={'tutorial': 'pubmedclip_biomedical', 'data_source': data_source})",
@@ -92,7 +92,7 @@ CODE_MARKERS = (
     "'model_revision': MODEL_REVISION",
     "'model_license': MODEL_LICENSE",
     "'weight_file': MODEL_FILENAME, 'weight_format': 'safetensors, digest-verified', 'weight_sha256': MODEL_SHA256, 'source_file': SOURCE_FILENAME, 'source_sha256': SOURCE_SHA256, 'pickle_audit_sha256': PICKLE_AUDIT_SHA256",
-    "'corpus': {'name': CORPUS_NAME, 'release': CORPUS_RELEASE, 'license': CORPUS_LICENSE, 'url': CORPUS_URL, 'archive_bytes': CORPUS_ARCHIVE_BYTES, 'archive_sha256': CORPUS_ARCHIVE_SHA256, 'pinned_slices': len(SAMPLE_RECORDS)",
+    "'corpus': {'name': CORPUS_NAME, 'release': CORPUS_RELEASE, 'license': CORPUS_LICENSE, 'url': CORPUS_URL, 'archive_bytes': CORPUS_ARCHIVE_BYTES, 'archive_sha256': CORPUS_ARCHIVE_SHA256, 'pinned_slices': len(tutorial_records())",
     "transformers.__version__",
     "'device': str(pipe.device)",
 )
@@ -116,11 +116,12 @@ MARKDOWN_MARKERS = (
     "object detection, semantic segmentation, OCR, caption generation",
     "## 4. OrganAMNIST slices and roles",
     "## 5. Classify through the inference contract",
-    "## 6. Baselines and the frozen model's zero-shot score on the test slices",
-    "## 7. Bounded fine-tuning of the vision tower's last blocks",
-    "## 8. Held-out evaluation",
+    "## 6. Baselines and the frozen model's zero-shot score on the exposed development test",
+    "## 7. A pre-registered configuration grid on validation",
+    "## 7b. Bounded fine-tuning of the vision tower's last blocks",
+    "## 8. The fresh test, scored only under the pre-registered settings",
     "## 9. Re-score the drawn shapes, export the adapter and reload it",
-    "**Leakage:**",
+    "**Leakage and selection:**",
     "**Prompts:**",
 )
 # Direct-library use that must stay inside the carried module cells (G2: the notebook calls the
@@ -161,7 +162,7 @@ INSTALL_CELL_MARKER = "# dimer: kernel cell"
 # Specification 2.2; see docs/release-verification.md for the release gate.
 # ---------------------------------------------------------------------------
 
-NOTEBOOK_SPEC = "2.2"
+NOTEBOOK_SPEC = "2.5"
 ALLOWED_PROFILES = {"E2E", "ARTIFACT-INFERENCE", "TASK-INFERENCE", "MULTI-CAPABILITY", "SMOKE"}
 STATUS_TOKENS = ("Candidate", "Release-grade")
 PLACEHOLDER = re.compile(r"\b(TODO|TBD|FIXME)\b|Insert text here|Tooltip:", re.I)
@@ -237,7 +238,7 @@ COMMON_MARKDOWN_MARKERS = (
     "without the repository being",
     "It does **not** establish benchmark superiority",
     "## References",
-    f"- Repository model card: https://github.com/kurtvalcorza/{REPO_NAME}/blob/main/MODEL_CARD.md",
+    f"https://github.com/kurtvalcorza/{REPO_NAME}/blob/main/MODEL_CARD.md",  # IEEE reference [8] (R71-m3)
 )
 # Patterns that must never appear in tutorial code (comment-stripped), in any cell.
 FORBIDDEN_PATTERNS = (
