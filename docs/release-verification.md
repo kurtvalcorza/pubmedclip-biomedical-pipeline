@@ -198,8 +198,9 @@ stated runtime, not general estimates.
   The notebook prints no confidence intervals for these figures (one seed, 176 slices from 70 shared scans).
 - **Probe versus fine-tuning:** on retrieval (text-to-image mAP) the frozen-embedding probe beats the adapted model on every
   split of this run: validation 0.968 vs 0.888, fresh test 0.885 vs 0.862, exposed development test 0.851 vs 0.821. On
-  accuracy the adapted model leads (fresh 0.881 vs 0.824). This matches the CPU development finding that a linear readout
-  of the frozen tower gets most of, or more than, the fine-tuning gain on retrieval.
+  accuracy the adapted model leads (fresh 0.881 vs 0.824). So fine-tuning improves classification accuracy, but a linear
+  readout on the frozen embeddings is as good or better for retrieval, and the retrieval gain should not be credited to
+  fine-tuning the vision layers (the CPU development look showed the same on the exposed development test).
 - **Development look (disclosed, score-once rule item 8):** the CPU development look of 2026-10-17 (uncommitted working
   tree later committed as `61d464c`; second row below) scored the fresh test at accuracy 0.165 → 0.886, mAP 0.248 → 0.865,
   with the same C2 choice (validation 0.892). It is not the evaluation of record.
@@ -214,6 +215,7 @@ stated runtime, not general estimates.
   probe sentence describes the CPU check (ridge chosen on 88 retired validation slices); the hosted probe chose its
   ridge on the 352 validation slices and also reads the fresh test (0.824 / 0.885), which the notebook prose does not quote
   yet. Follow-up: requote in the generator and regenerate (changes the notebook blob; not part of this docs-only record).
+  Done on 2026-10-17 in the requote commits that follow this record; the notebook now names this run in `RECORDED_EVALUATION`.
 - **Evidence files** (`docs/execution-evidence/2026-10-17-352452b/`, byte-exact copies):
   - `pubmedclip_biomedical_colab_352452b_colab-cli-t4_output.ipynb` — SHA-256 `4513a0f43d2706fc8e9c22f7f2006bed4a6e11c4f3ef9c01e15c39a08a5369f0`
   - `exec.log` — SHA-256 `9134e14e055f698606cb3f22da22c28f16ca51cd5eb55d8ce5bc0ba4dcbe9e32`

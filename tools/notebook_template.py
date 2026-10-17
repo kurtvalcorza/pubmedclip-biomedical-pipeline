@@ -78,7 +78,7 @@ TEMPLATE = {
             'the only values meant to be edited, and the defaults reproduce the recorded run. Before each principal result the notebook asks you to **Predict**; '
             'after it come **What to notice** and a collapsible **Check your reasoning** with a worked answer. Each quoted number names its run: values on the 176 '
             '*exposed development-test* slices come from the Colab CLI Tesla T4 run of notebook blob `066b560d` on 8 October 2026 (`docs/release-verification.md`); '
-            'the grid, the 352-slice validation and the fresh-test values come from the **CPU build record of 2026-10-17** at this revision, pending its hosted run. Every adaptation starts from the pinned base, so re-running Section 7 with other settings '
+            'the grid, the 352-slice validation and the fresh-test values come from the **pre-registered evaluation of record**, the Colab CLI T4 run of 17 October 2026 (REL13: that run; `docs/release-verification.md` also discloses the earlier CPU development look, which changed no setting). Every adaptation starts from the pinned base, so re-running Section 7 with other settings '
             'is a fresh experiment. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** '
             '1–3 infrastructure → 4 the OrganAMNIST slices, their roles and refusals *(evaluation practice)* → 5 the inference contract on drawn shapes *(core '
             "concept: relative, uncalibrated scores)* → 6 two baselines and the frozen model's zero-shot score *(evaluation practice)* → 7 bounded fine-tuning of "
@@ -139,7 +139,7 @@ TEMPLATE = {
         "The default path needs no repository clone, no DIMER worker or service, no credential, no upload dialog and no configuration "
         "edit (NOTEBOOK_SPEC 2.5 §5). On CPU the model time of the whole path, grid included, was about 15 minutes on the build workstation "
         "after the downloads (CPU build record of 2026-10-17; expect longer on a 2-vCPU hosted runtime); a CUDA runtime is used automatically "
-        "when present (the grid takes about 1–2 minutes on a T4)."
+        "when present (the grid took 83.3 s on the 2026-10-17 T4 run of record)."
     ),
     "byod": (
         "After the tutorial workflow completes, set `USE_BYOD = True` in Section 4 and re-run from that cell to supply one zip (or "
@@ -209,7 +209,7 @@ TEMPLATE = {
         "for your classes. The repository exposes none of these."
     ),
     "prerequisites": [
-        "- **Runtime:** a fresh supported runtime (Google Colab or Jupyter, Python 3.12). The default path runs on CPU (float32) and uses CUDA automatically when available. CPU is slow but adequate: the CPU build record of 2026-10-17 (build workstation, a development run of this revision, not a notebook execution) took 519 s for the three-configuration grid and 311 s for the final six-epoch fine-tuning (396 slices per epoch, scored on 352 validation slices after each epoch), so the whole default path is about 15 minutes of model time with the snapshot and slices already cached (a 2-vCPU hosted runtime will be several times slower); a hosted T4 runs the grid in about 1–2 minutes. Building the isolated environment (the pinned `torch==2.14.0` among its packages; reused on a re-run), the 605 MB checkpoint and the 1.8 GB MedMNIST archive are the large downloads of the run.",
+        "- **Runtime:** a fresh supported runtime (Google Colab or Jupyter, Python 3.12). The default path runs on CPU (float32) and uses CUDA automatically when available. CPU is slow but adequate: the CPU build record of 2026-10-17 (build workstation, a development run of this revision, not a notebook execution) took 519 s for the three-configuration grid and 311 s for the final six-epoch fine-tuning (396 slices per epoch, scored on 352 validation slices after each epoch), so the whole default path is about 15 minutes of model time with the snapshot and slices already cached (a 2-vCPU hosted runtime will be several times slower); the 2026-10-17 Colab CLI T4 run of record took 83.3 s for the grid. Building the isolated environment (the pinned `torch==2.14.0` among its packages; reused on a re-run), the 605 MB checkpoint and the 1.8 GB MedMNIST archive are the large downloads of the run.",
         "- **Knowledge:** basic Python and PIL; what a softmax score and a cosine similarity are; what accuracy, macro F1 and average precision measure and why none is a human judgement; why a high score is not a correct label — and, for medical images, why none of this is diagnostic evidence.",
         "- **Data contract:** records are `{id, image, label}` — a PIL image or a file decodable by Pillow with sides up to `MAX_IMAGE_SIDE` (4096) px and a label of at most 64 plain characters (the prompt is `DEFAULT_PROMPT_TEMPLATE` with the label, or its display name, filled in). Ids match `[A-Za-z0-9_.:-]{1,64}` and are unique; a dataset needs 8..20,000 records over 2..100 labels; the sample keeps the dataset's own roles and BYOD is split stratified per label after pixel-digest de-duplication so no image lands in two splits — or by an optional `group` column (patient, scan or session) so no group lands in two splits, or by an optional `split` column — and needs at least 12 images (six per label for two labels) for the split to leave eight to train on. BYOD accepts one zip of images plus a `labels.csv` in that shape.",
         "- **Environment variables (optional; the defaults need neither):** `DIMER_ISOLATED_ENV` names the folder Section 1 builds the isolated environment in (default `dimer_isolated_env_<lock digest>` in the working directory; set it to reuse an environment elsewhere). `PUBMEDCLIP_WEIGHTS_DIR` names a folder holding an already-staged snapshot that the carried `resolve_weights_path` uses when no folder is passed; this notebook always passes the Section 3 folder, so it only matters when you call the package yourself.",
@@ -577,9 +577,9 @@ TEMPLATE = {
         {
             "md": (
                 "**What to notice:** each configuration's validation mAP by epoch, the three `best_val_t2i_map` values against the 0.02 margin, "
-                "`frozen_val_map`, and `reason` in `grid_selection`.\n\n<details><summary>Check your reasoning</summary>In the CPU build "
-                "record of 2026-10-17 (a development run of this revision on the build workstation, pending the hosted run) the best-epoch "
-                "validation mAP was C0 0.772, C1 0.678 and C2 0.892 against a frozen 0.296, and the rule selected "
+                "`frozen_val_map`, and `reason` in `grid_selection`.\n\n<details><summary>Check your reasoning</summary>In the pre-registered "
+                "evaluation of record (Colab CLI T4, 2026-10-17; REL13: that run; the earlier CPU development look made the same choice with C2 at 0.892) the best-epoch "
+                "validation mAP was C0 0.772, C1 0.678 and C2 0.888 against a frozen 0.296, and the rule selected "
                 "**C2** (C2 beat C0 by 0.12, well over the 0.02 margin, C1 fell short of C0, and C2 beat the frozen model by far more than 0.02). A difference under 0.02 on 352 slices is treated as no difference, which is why a "
                 "challenger has to clear the margin rather than merely come out ahead.</details>"
             ),
@@ -600,13 +600,13 @@ TEMPLATE = {
                 "development test, not the fresh test.\n\n"
                 "Watch the training loss fall while the validation mAP climbs and then flattens: 396 slices are few, but the organs are "
                 "visually separable and the frozen model started far from the task, so the selector's job is to stop before the last "
-                "blocks memorise the training slices — when that happens within six epochs; in the CPU build record the selected C2 kept its last "
+                "blocks memorise the training slices — when that happens within six epochs; in the T4 run of record the selected C2 kept its last "
                 "epoch, so selection kept the final model. C2 is the largest configuration in the grid and the best epoch is the last of the "
                 "budget: it is the best of the three pre-registered options, at the edge of both the scope and the epoch budget, not a "
                 "demonstrated optimum (the optional experiments explore past that edge, on validation only). The reported validation numbers "
                 "are biased upward, because the configuration and the epoch were both chosen on them. On a GPU the 7b run can differ "
-                "slightly from the grid row of the same configuration (non-deterministic kernels). In the CPU build record of 2026-10-17 "
-                "the selected configuration kept epoch 6 of six (validation mAP 0.296 frozen → 0.892). Every call starts from the pinned base "
+                "slightly from the grid row of the same configuration (non-deterministic kernels). In the T4 run of record (2026-10-17) "
+                "the selected configuration kept epoch 6 of six (validation mAP 0.296 frozen → 0.888). Every call starts from the pinned base "
                 "(`started_from` in the printed result), so a re-run with other settings is a fresh experiment, not continued training, "
                 "and epoch 0 is always the frozen model.\n\n"
                 "**Predict before running:** will the epoch with the lowest training loss be the one kept?"
@@ -644,7 +644,7 @@ TEMPLATE = {
             "md": (
                 '**What to notice:** epoch 0 (`note: frozen model`), the training loss against `val_t2i_map` per epoch, `best_epoch`, and `selection`.\n\n<details><summary>Check '
                 'your reasoning</summary>Not by design. The training loss keeps falling to the last epoch, and the selector ignores it: it keeps the epoch with the highest validation mAP. In '
-                'the CPU build record of 2026-10-17 the two happened to coincide — epoch 6 of six (validation mAP 0.296 → 0.892 on 352 slices; differences of about 0.01 between epochs are noise at this size). With other settings they part (in the grid, C0 peaked at epoch 2 of six while its loss kept falling); validation, not '
+                'the T4 run of record (2026-10-17) the two happened to coincide — epoch 6 of six (validation mAP 0.296 → 0.888 on 352 slices; differences of about 0.01 between epochs are noise at this size). With other settings they part (in the grid, C0 peaked at epoch 2 of six while its loss kept falling); validation, not '
                 'training loss, says when to stop.</details>'
             ),
         },
@@ -657,12 +657,12 @@ TEMPLATE = {
                 "`pre-registered evaluation (this runtime)`, `reproduction (this runtime)` (an earlier report in this runtime already holds a "
                 "pre-registered scoring; it is written to `*_reproduction_<n>.json`, never over the first) or `not scored (exploratory)`. A "
                 "runtime cannot see other runtimes: the evaluation of record is the first hosted pre-registered run, named in "
-                "`docs/release-verification.md`, and a run of yours with identical settings is a reproduction of it. The check also "
+                "`docs/release-verification.md` and in `RECORDED_EVALUATION`, and a run of yours with identical settings is a reproduction of it (the report's `relation_to_record` says so). The check also "
                 "requires that the grid ran on this run's data and settings and that the model in memory is the one Section 7b trained "
                 "(re-running Section 5, 6 or 7 after 7b puts the pinned base back, and the run becomes exploratory).\n\n"
                 "- **Pre-registered:** the majority floor, the intensity neighbour, the frozen model and — if the grid kept adaptation — "
                 "the adapted model are scored on the **176-slice fresh test**, not used for training, configuration or epoch selection in "
-                "this revision (a CPU development look scored it once on 2026-10-17; see `docs/release-verification.md`). The **frozen-embedding "
+                "this revision (a CPU development look scored it once on 2026-10-17, before the T4 run of record; see `docs/release-verification.md`). The **frozen-embedding "
                 "readout** (a ridge readout on the frozen model's image embeddings, fitted on train, its ridge chosen on validation; "
                 "pre-registration amendment 1) is scored beside them: the gap between it and the adapted model is what fine-tuning the vision "
                 "blocks adds over simply using the labels. The fixed settings (epochs, batch, prompt, learning rate) were set in earlier revisions with the exposed development test in view; because the fresh test shares its 70 scans, it is unseen at the slice level but not an independent, patient-level confirmation of those choices. Its slices come from the official test scans, which no training or validation "
@@ -745,9 +745,13 @@ TEMPLATE = {
                 "for key in ('raw_label_prompts', 'delta_vs_frozen', 'ap_fell', 'recall_fell', 'by_organ'):\n"
                 "    if key in comparison:\n"
                 "        print({{key: comparison[key]}})\n"
+                "# The pre-registered evaluation of record (docs/release-verification.md); an identical pre-registered run is a reproduction of it.\n"
+                "RECORDED_EVALUATION = 'Colab CLI T4 run of 2026-10-17 (commit 352452b, notebook blob c5a0e62d; docs/release-verification.md)'\n"
+                "relation_to_record = ('reproduction of the pre-registered evaluation' if RECORDED_EVALUATION else 'the pre-registered evaluation') if preregistered else 'not scored (exploratory)'\n"
                 "evaluation_report_payload = {{\n"
                 "    'test_look': test_look,\n"
-                "    'evaluation_of_record': 'see docs/release-verification.md (the first hosted pre-registered run); this runtime cannot know about others',\n"
+                "    'evaluation_of_record': RECORDED_EVALUATION,\n"
+                "    'relation_to_record': relation_to_record,\n"
                 "    'preregistered': preregistered,\n"
                 "    'settings_differing': differing,\n"
                 "    'preregistration': PREREGISTRATION,\n"
@@ -775,19 +779,19 @@ TEMPLATE = {
                 "written = suffixed(report_path)  # never overwrites the first pre-registered report (this runtime)\n"
                 "with open(written, 'w', encoding='utf-8') as f:\n"
                 "    json.dump(evaluation_report_payload, f, indent=2, ensure_ascii=False)\n"
-                "print({{'report': str(written), 'test_look': test_look}})"
+                "print({{'report': str(written), 'test_look': test_look, 'relation_to_record': relation_to_record}})"
             ),
         },
         {
             "md": (
                 '**What to notice:** `preregistered`, `test_look` and `settings_differing` first; then the four systems on the three metrics, `delta_vs_frozen`, the raw-label prompt rows, `ap_fell` / `recall_fell`, and the `verdict`.\n\n<details><summary>Check '
-                'your reasoning</summary>The evaluation of record will be the first hosted run. The only fresh-test numbers so far are a disclosed CPU **development look** of 2026-10-17 (uncommitted working tree, later commit `61d464c`; pre-registered settings, C2 selected; it changed no setting). It read '
-                'accuracy 0.165 frozen → 0.886 adapted (neighbour 0.619, majority 0.091), text-to-image mAP 0.248 → 0.865, '
-                'verdict *improved*; on the raw-label prompts (a secondary analysis, not pre-registered) mAP 0.328 → 0.912, so the gain transfers to a prompt set the model was never tuned with. `ap_fell` was [lung-right]: its AP fell 0.71 → 0.60 while its recall rose 0.19 → 0.94 — found as the top answer more often, ranked lower by its own prompt. '
-                'On the exposed development test the same model read mAP 0.817 (the 8 October 2026 Colab run of the earlier default read 0.654 there). The intensity neighbour, '
+                'your reasoning</summary>The evaluation of record is the first hosted pre-registered run, the Colab CLI T4 run of 2026-10-17 (REL13: that run; `docs/release-verification.md`, which also discloses a CPU **development look** of the same day, uncommitted working tree later committed as `61d464c`, that read accuracy 0.886 and mAP 0.865 and changed no setting). It read '
+                'accuracy 0.165 frozen → 0.881 adapted (neighbour 0.619, majority 0.091), text-to-image mAP 0.248 → 0.862, '
+                'verdict *improved*; on the raw-label prompts (a secondary analysis, not pre-registered) mAP 0.328 → 0.910, so the gain transfers to a prompt set the model was never tuned with. `ap_fell` was [lung-right]: its AP fell 0.71 → 0.64 while its recall rose 0.19 → 0.94 — found as the top answer more often, ranked lower by its own prompt. '
+                'On the exposed development test the same model read mAP 0.821 (the 8 October 2026 Colab run of the earlier default read 0.654 there). The intensity neighbour, '
                 'a deterministic baseline, read accuracy 0.619 on the fresh slices and 0.511 on the exposed ones — two 176-slice draws from the same 70 scans, '
                 'so a swing of about 0.1 is sampling noise, a free lesson in why one seeded run has no dispersion estimate. '
-                'The frozen-embedding readout is the sharper comparison: in a CPU check with the fresh test masked (ridge chosen on the 88 retired validation slices, not the 352), it read mAP 0.851 / accuracy 0.801 on the exposed development test against 0.817 / 0.858 for the adapted model — a linear readout of the frozen tower gets most of the gain, so fine-tuning the blocks adds little on retrieval here. '
+                'The frozen-embedding readout is the sharper comparison, and it changes the reading. On retrieval mAP it is as good as or better than the fine-tuned model on all three splits: fresh test 0.885 against 0.862, exposed development test 0.851 against 0.821, validation 0.968 against 0.888. On accuracy fine-tuning leads: fresh test 0.881 against 0.824, exposed development test 0.869 against 0.801. So fine-tuning the vision blocks improves classification accuracy, but a linear readout on the frozen embeddings is as good or better for retrieval, and the retrieval gain over the frozen zero-shot prompts should not be credited to fine-tuning the vision layers. '
                 'A higher mean can hide a regression in one organ, one seeded run on 176 slices has no dispersion estimate, and none of this is clinical '
                 'evidence.</details>'
             ),
@@ -871,9 +875,9 @@ TEMPLATE = {
         "## Interpretation and limits\n\n"
         "The frozen model is a partial zero-shot classifier on eleven abdominal organs whose names it was not trained to "
         "classify — above the majority floor, but well below the intensity neighbour — and a bounded fine-tuning of the vision "
-        "tower's last blocks and projection, in the configuration a pre-registered grid chose on validation, moves the retrieval "
-        "view clearly: on the fresh test, text-to-image mAP 0.248 → 0.865 and accuracy 0.165 → "
-        "0.886 in the CPU build record of 2026-10-17 (pending the hosted run), with an adapter (115 MB with the four selected blocks) that reloads to "
+        "tower's last blocks and projection, in the configuration a pre-registered grid chose on validation, moves both scores "
+        "clearly: on the fresh test, text-to-image mAP 0.248 → 0.862 and accuracy 0.165 → "
+        "0.881 in the pre-registered evaluation of record (Colab CLI T4, 2026-10-17; REL13: that run), with an adapter (115 MB with the four selected blocks) that reloads to "
         "identical embeddings. That is the claim: the adaptation contract works end to end on a real labelled medical-image set, "
         "and the numbers it produces are read on three metrics, per organ, on two prompt sets, against two non-neural baselines "
         "and the frozen model rather than in isolation [1], [2].\n\n"
@@ -883,7 +887,9 @@ TEMPLATE = {
         "share the 70 official test scans, which MedMNIST does not identify, so they are not independent of each other — only of "
         "training and validation (scan-disjoint; patient-level disjointness is not documented). The fixed settings (epochs, batch, prompt, learning rate) were set in earlier revisions with the exposed development test in view; because the fresh test shares its 70 scans, it is unseen at the slice level but not an independent, patient-level confirmation of those choices. The frozen-embedding "
         "readout is the reference that splits the gain into \"a supervised readout of the frozen tower\" and \"fine-tuning the "
-        "vision blocks\". On the data: LiTS is a cohort of liver-tumour patients from several centres, not a general population; "
+        "vision blocks\", and here it splits it unevenly: on the fresh test the readout reaches mAP 0.885 and accuracy 0.824, so fine-tuning "
+        "improves classification accuracy (0.881) but a linear readout on the frozen embeddings is as good or better for retrieval "
+        "(on all three splits); the retrieval gain should not be credited to fine-tuning the vision layers. On the data: LiTS is a cohort of liver-tumour patients from several centres, not a general population; "
         "OrganAMNIST labels come from bounding boxes; and by radiological convention the patient's left appears on the image's right, "
         "which is why left / right are the hard classes (the adaptation applies no flip augmentation, which is correct here). The metrics are three reference-based scores (own numpy implementations; none a human judgement), accuracy "
         "moves in steps of one slice, and there is no dispersion estimate. Overlap between these slices and the ROCO/PMC "
