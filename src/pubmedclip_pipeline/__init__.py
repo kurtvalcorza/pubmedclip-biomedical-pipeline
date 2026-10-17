@@ -10,10 +10,12 @@ from .config import (
 )
 from .metrics import (
     METRIC_DEFINITIONS,
+    apply_embedding_probe,
     average_precision,
     classification_metrics,
     colour_neighbour_baseline,
     colour_signature,
+    fit_embedding_probe,
     majority_baseline,
 )
 from .model import (
@@ -49,8 +51,11 @@ from .protocol import (
     GRID_CONFIGS,
     GRID_MARGIN,
     PREREGISTERED_SETTINGS,
+    adapter_mismatch,
     exploratory_path,
     look_at_test,
+    output_suffix,
+    run_fingerprint,
     select_config,
     settings_differing,
 )
@@ -98,7 +103,12 @@ __all__ = [
     "GRID_MARGIN",
     "PREREGISTERED_SETTINGS",
     "VALIDATION_RECORDS",
+    "adapter_mismatch",
+    "apply_embedding_probe",
     "exploratory_path",
+    "fit_embedding_probe",
+    "output_suffix",
+    "run_fingerprint",
     "look_at_test",
     "pin_manifest_digest",
     "select_config",

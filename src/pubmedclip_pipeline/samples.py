@@ -2,11 +2,13 @@
 validation, seeded splitting, BYOD loaders and CSV export.
 
 The default dataset is **real** and inside the checkpoint's domain (radiology) while outside anything its
-captions describe precisely: 660 axial abdominal CT slices from MedMNIST+ **OrganAMNIST** at 224 × 224 (Yang et
+captions describe precisely: 1,100 axial abdominal CT slices from MedMNIST+ **OrganAMNIST** at 224 × 224 (Yang et
 al., 2023; source volumes from the Liver Tumor Segmentation Benchmark, organ labels from the bounding boxes of
-Xu et al.; CC BY 4.0), 60 per organ over the 11 organ classes, drawn with a fixed seed from the dataset's own
-train / validation / test splits (36 / 8 / 16 per organ) — MedMNIST splits by CT scan, so no scan contributes
-slices to two roles — and pinned here by split, index and the SHA-256 of the raw 224 × 224 uint8 slice. The
+Xu et al.; CC BY 4.0), 100 per organ over the 11 organ classes, in four roles each drawn from one of the dataset's own
+splits: train 36, validation 32, exposed development test 16 and fresh test 16 per organ (396 / 352 / 176 / 176;
+see docs/pubmedclip-preregistration.md and its amendment 1). MedMNIST splits by CT scan, so no scan feeds training
+and an evaluation role (patient-level disjointness is not documented); the two test roles share the 70 official
+test scans. The 660-slice SAMPLE_RECORDS keep their pins (their 88 val slices are retired). Every slice is pinned here by split, index and the SHA-256 of the raw 224 × 224 uint8 slice. The
 archive `organamnist_224.npz` (1.8 GB) is fetched from the authors' Zenodo record at run time, verified by byte
 size and SHA-256, and read with `numpy.load(allow_pickle=False)`; only the pinned slices are kept and each is
 verified again. The repository redistributes none of the slices.

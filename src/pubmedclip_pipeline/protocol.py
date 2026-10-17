@@ -14,7 +14,7 @@ from typing import Any
 
 from .samples import pin_manifest_digest
 
-PREREGISTRATION = "docs/pubmedclip-preregistration.md"
+PREREGISTRATION = "docs/pubmedclip-preregistration.md (+ docs/pubmedclip-preregistration-amendment-1.md)"
 CT_PROMPT = "An axial abdominal CT slice showing the {label}."
 GRID_MARGIN = 0.02  # validation text-to-image mAP on 352 slices; a practical tolerance, not a significance threshold
 DEFAULT_CONFIG = "C0"
@@ -34,10 +34,11 @@ PREREGISTERED_SETTINGS: dict[str, Any] = {
     "prompt_template": CT_PROMPT,
     "grid_run": True,
 }
-TEST_LOOKS = ("pre-registered evaluation", "reproduction", "not scored (exploratory)")
-# The release-verification row of the first recorded pre-registered hosted run, once there is one; every later run with
-# identical settings is then a reproduction of it.
-RECORDED_EVALUATION: str | None = None
+# SCORE_ONCE_RULE item 8: a runtime cannot know about other runtimes, so the labels say "(this runtime)"; which run is the
+# evaluation of record (the first hosted pre-registered run) is stated only in docs/release-verification.md.
+TEST_LOOKS = ("pre-registered evaluation (this runtime)", "reproduction (this runtime)", "not scored (exploratory)")
+MODEL_STATE_MISMATCH = "model state is not the selected adapted model"
+_ADAPTER_KEYS = ("epochs", "lr", "trainable_vision_layers", "seed", "best_epoch", "n_train", "n_val")
 
 
 def _scope(name: str) -> tuple[int, float]:
@@ -45,8 +46,44 @@ def _scope(name: str) -> tuple[int, float]:
     return (int(config["trainable_vision_layers"]), float(config["lr"]))
 
 
+def run_fingerprint(
+    *,
+    data_source: str,
+    pin_manifest_sha256: str | None,
+    split_seed: int,
+    validation_digest: str,
+    epochs: int,
+    batch_size: int,
+    seed: int,
+    prompt_template: str,
+) -> dict[str, Any]:
+    """The inputs a grid selection is only valid for (amendment 1, section 2)."""
+    return {
+        "data_source": data_source,
+        "pin_manifest_sha256": pin_manifest_sha256,
+        "split_seed": split_seed,
+        "validation_digest": validation_digest,
+        "epochs": epochs,
+        "batch_size": batch_size,
+        "seed": seed,
+        "prompt_template": prompt_template,
+    }
+
+
+def adapter_mismatch(adapter: Mapping[str, Any] | None, adapt_result: Mapping[str, Any] | None) -> list[str]:
+    """Why the model in memory is not the one Section 7b trained (empty = it is)."""
+    if adapter is None or adapt_result is None:
+        return [MODEL_STATE_MISMATCH + " (no adapter on the pipeline, or no Section 7b result)"]
+    bad = [k for k in _ADAPTER_KEYS if adapter.get(k) != adapt_result.get(k)]
+    return [f"{MODEL_STATE_MISMATCH} (differs in {bad})"] if bad else []
+
+
 def select_config(
-    scores: Mapping[str, float], frozen_val_map: float, *, margin: float = GRID_MARGIN
+    scores: Mapping[str, float],
+    frozen_val_map: float,
+    *,
+    margin: float = GRID_MARGIN,
+    fingerprint: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Apply the pre-registered rule to best-epoch validation mAP per config.
 
@@ -78,15 +115,25 @@ def select_config(
         "scores": {k: round(float(v), 4) for k, v in scores.items()},
         "frozen_val_map": round(float(frozen_val_map), 4),
         "margin": margin,
+        "fingerprint": dict(fingerprint) if fingerprint is not None else None,
     }
 
 
-def settings_differing(settings: Mapping[str, Any], selection: Mapping[str, Any] | None) -> list[str]:
-    """The names of the settings that differ from the pre-registration (empty = pre-registered)."""
+def settings_differing(
+    settings: Mapping[str, Any],
+    selection: Mapping[str, Any] | None,
+    fingerprint: Mapping[str, Any] | None = None,
+    model_state: list[str] | None = None,
+) -> list[str]:
+    """The settings that differ from the pre-registration (empty = pre-registered): every fixed setting, the grid's
+    selection and the inputs it ran on (`fingerprint`), and the model state (`model_state`, from `adapter_mismatch`)."""
     differing = [k for k, v in PREREGISTERED_SETTINGS.items() if settings.get(k) != v]
+    differing += list(model_state or [])
     if selection is None:
         differing.append("config (no grid selection in this run)")
     else:
+        if fingerprint is None or selection.get("fingerprint") != dict(fingerprint):
+            differing.append("grid selection (it ran on other data or settings than this run; re-run Section 7)")
         used = {"trainable_vision_layers": settings.get("trainable_vision_layers"), "lr": settings.get("lr")}
         if used != selection["config"]:
             differing.append(f"config (used {used}, grid selected {selection['selected']} {selection['config']})")
@@ -94,13 +141,26 @@ def settings_differing(settings: Mapping[str, Any], selection: Mapping[str, Any]
 
 
 def look_at_test(differing: list[str], prior: Mapping[str, Any] | None = None) -> str:
-    """`not scored (exploratory)` when any setting differs; `reproduction` when a pre-registered evaluation was already
-    recorded (RECORDED_EVALUATION) or an earlier report in this runtime carries one; else `pre-registered evaluation`."""
+    """`not scored (exploratory)` when any setting differs; `reproduction (this runtime)` when an earlier report in this
+    runtime carries a pre-registered scoring; else `pre-registered evaluation (this runtime)`."""
     if differing:
         return TEST_LOOKS[2]
-    if RECORDED_EVALUATION is not None or (prior or {}).get("test_look") in TEST_LOOKS[:2]:
+    if (prior or {}).get("test_look") in TEST_LOOKS[:2]:
         return TEST_LOOKS[1]
     return TEST_LOOKS[0]
+
+
+def output_suffix(path: str | Path, test_look: str) -> str:
+    """One suffix per run for every file it writes: '' for the first pre-registered scoring in this runtime,
+    `_reproduction_<n>` or `_exploratory_<n>` (first free n beside `path`) otherwise, so no run overwrites another."""
+    if test_look == TEST_LOOKS[0]:
+        return ""
+    kind = "reproduction" if test_look == TEST_LOOKS[1] else "exploratory"
+    path = Path(path)
+    n = 1
+    while path.with_name(f"{path.stem}_{kind}_{n}{path.suffix}").exists():
+        n += 1
+    return f"_{kind}_{n}"
 
 
 def exploratory_path(path: str | Path) -> Path:

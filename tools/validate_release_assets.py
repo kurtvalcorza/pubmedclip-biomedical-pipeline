@@ -71,7 +71,7 @@ CODE_MARKERS = (
     "frozen_scene = evaluation_report(result, targets, sample_kind='synthetic')",
     "baseline_majority = majority_baseline(train_records, dev_records, classes)",
     "baseline_neighbour = colour_neighbour_baseline(train_records, dev_records, classes)",
-    "grid_selection = select_config({n: r['best_val_t2i_map'] for n, r in grid_results.items()}, frozen_val_map)",  # R71-M1
+    "grid_selection = select_config({n: r['best_val_t2i_map'] for n, r in grid_results.items()}, frozen_val_map, fingerprint=grid_fingerprint)",  # R71-M1, R71P-M1
     "PROMPT_TEMPLATE = CT_PROMPT if not USE_BYOD else (BYOD_PROMPT_TEMPLATE.strip() or DEFAULT_PROMPT_TEMPLATE)",
     "restored = pipe.restore_base()",
     "split_mode = byod_split_mode(records)",
@@ -80,7 +80,9 @@ CODE_MARKERS = (
     "frozen_plain = pipe.evaluate(dev_records, classes=classes, class_names_map=plain_names)",
     "frozen_vs_majority = {m: 'above' if frozen_test[m] > baseline_majority[m] else 'not above' for m in ('accuracy', 't2i_map')}",
     "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=lr_used, batch_size=BATCH_SIZE, trainable_vision_layers=layers_used, prompt_template=PROMPT_TEMPLATE, class_names_map=display_names, seed=ADAPT_SEED, progress=report)",
-    "differing = settings_differing(run_settings, grid_selection)",  # R71-M3 (SCORE_ONCE_RULE)
+    "differing = settings_differing(run_settings, grid_selection, run_fingerprint_now, model_state)",  # R71-M3, R71P-M1
+    "model_state = adapter_mismatch(pipe.adapter, adapt_result)",
+    "probe = fit_embedding_probe(",  # R71P-M4
     "adapted_val = pipe.evaluate(val_records, classes=classes, class_names_map=display_names, prompt_template=PROMPT_TEMPLATE)",
     "table['verdict'] = {'adapted_vs_frozen_t2i_map': 'improved' if delta > 0 else ('no change' if delta == 0 else 'worse')}",
     "'verdict': comparison['verdict']",

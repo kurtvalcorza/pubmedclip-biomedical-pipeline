@@ -82,7 +82,7 @@ def test_release_notebook_exercises_the_adaptation_contract() -> None:
         "grid_selection = select_config(",  # R71-M1: the pre-registered grid on validation
         "adapt_result = pipe.adapt(train_records, val_records, epochs=EPOCHS, lr=lr_used,",
         "table['verdict'] = {'adapted_vs_frozen_t2i_map': 'improved'",  # SWP-A verdict
-        "differing = settings_differing(run_settings, grid_selection)",  # R71-M3 / SCORE_ONCE_RULE
+        "differing = settings_differing(run_settings, grid_selection, run_fingerprint_now, model_state)",  # noqa: E501  -- R71-M3 / R71P-M1
         "pipe.save_artifact(artifact_dir,",
         "reloaded = PubMedClipPipeline.from_artifact(artifact_dir, weights_dir=WEIGHTS_DIR, device=pipe.device)",  # noqa: E501
         "assert parity['identical_rows'] == parity['of']",

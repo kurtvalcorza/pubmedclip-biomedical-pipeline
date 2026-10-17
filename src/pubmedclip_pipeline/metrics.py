@@ -161,3 +161,56 @@ def colour_neighbour_baseline(
     result = classification_metrics(grid, gold, class_list)
     result["baseline"] = f"colour nearest neighbour ({len(train)} training images)"
     return result
+
+
+PROBE_RIDGES = (10.0, 1.0, 0.1, 0.01, 0.001)  # strongest first, so a validation tie keeps the stronger ridge
+
+
+def _probe_scores(weights: np.ndarray, embeddings: Any) -> np.ndarray:
+    x = np.asarray(embeddings, dtype=np.float64)
+    x = x / np.maximum(np.linalg.norm(x, axis=1, keepdims=True), 1e-12)
+    return np.hstack([x, np.ones((len(x), 1))]) @ weights
+
+
+def fit_embedding_probe(
+    train_embeddings: Any,
+    train_labels: Sequence[str],
+    val_embeddings: Any,
+    val_labels: Sequence[str],
+    classes: Sequence[str],
+    ridges: Sequence[float] = PROBE_RIDGES,
+) -> dict[str, Any]:
+    """A supervised readout on FROZEN image embeddings (pre-registration amendment 1): one-vs-rest ridge regression to
+    one-hot targets with a bias column, fitted on train; the ridge with the highest validation text-to-image mAP is kept
+    (ties keep the stronger ridge). It shows how much of a fine-tuning gain a linear readout of the frozen tower gets."""
+    classes = list(classes)
+    x = np.asarray(train_embeddings, dtype=np.float64)
+    x = x / np.maximum(np.linalg.norm(x, axis=1, keepdims=True), 1e-12)
+    xb = np.hstack([x, np.ones((len(x), 1))])
+    y = np.zeros((len(x), len(classes)))
+    y[np.arange(len(x)), [classes.index(str(label)) for label in train_labels]] = 1.0
+    gold_val = [classes.index(str(label)) for label in val_labels]
+    best: dict[str, Any] | None = None
+    tried = {}
+    for ridge in ridges:
+        weights = np.linalg.solve(xb.T @ xb + ridge * np.eye(xb.shape[1]), xb.T @ y)
+        val = classification_metrics(_probe_scores(weights, val_embeddings), gold_val, classes)
+        tried[str(ridge)] = round(val["t2i_map"], 4)
+        if best is None or val["t2i_map"] > best["validation"]["t2i_map"]:
+            best = {"ridge": ridge, "weights": weights, "validation": val}
+    assert best is not None
+    best["ridges_tried"] = tried
+    best["baseline"] = f"ridge readout on frozen image embeddings (ridge {best['ridge']} chosen on validation mAP)"
+    return best
+
+
+def apply_embedding_probe(
+    probe: Mapping[str, Any], embeddings: Any, labels: Sequence[str], classes: Sequence[str]
+) -> dict[str, Any]:
+    """Score records with a fitted `fit_embedding_probe` readout."""
+    classes = list(classes)
+    result = classification_metrics(
+        _probe_scores(probe["weights"], embeddings), [classes.index(str(label)) for label in labels], classes
+    )
+    result["baseline"] = probe["baseline"]
+    return result
