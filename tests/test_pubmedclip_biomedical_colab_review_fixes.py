@@ -20,6 +20,7 @@ from PIL import Image
 
 from pubmedclip_pipeline import (
     BYOD_MIN_RECORDS,
+    CT_PROMPT,
     DEFAULT_PROMPT_TEMPLATE,
     byod_split_mode,
     load_byod_dataset,
@@ -217,7 +218,7 @@ def test_pmc_m2_sections_5_and_6_restore_the_pinned_base_before_scoring(notebook
     s6 = _cell(notebook, "frozen_test = pipe.evaluate(")
     assert s6.index("restored = pipe.restore_base()") < s6.index("frozen_test = pipe.evaluate(")
     md = _markdown(notebook)
-    assert "Scope of a re-run" in md and "run Sections 7, 8 and 9" in md
+    assert "Scope of a re-run" in md and "run Sections 7b, 8 and 9" in md
 
 
 WEIGHTS = Path(os.environ.get("PUBMEDCLIP_WEIGHTS_DIR", str(ROOT / "weights" / "pubmed-clip-vit-base-patch32")))
@@ -257,10 +258,11 @@ def test_pmc_m3_byod_below_the_floor_continues_and_the_sample_still_asserts(note
     floor = {"accuracy": 0.5, "t2i_map": 0.5}
     exec(compile(snippet, "<section 6>", "exec"), {"frozen_test": below, "baseline_majority": floor, "USE_BYOD": True})
     assert "That is a result, not an error" in capsys.readouterr().out
-    with pytest.raises(AssertionError, match="pinned sample"):
+    with pytest.raises(AssertionError, match="exposed development test"):
         exec(compile(snippet, "<section 6>", "exec"), {"frozen_test": below, "baseline_majority": floor, "USE_BYOD": False})
-    s8 = _cell(notebook, "delta_map = ")
-    assert "if not USE_BYOD:" in s8 and "assert delta_map > 0" in s8
+    # R71: the fresh-test outcome is a recorded verdict only; Section 8 asserts nothing about model quality.
+    s8 = _cell(notebook, "run_settings = ")
+    assert "assert " not in s8 and "table['verdict'] = " in s8
 
 
 # --- PMC-m1: the BYOD prompt is the documented template ------------------------------------------------------------
@@ -277,7 +279,7 @@ def test_pmc_m3_byod_below_the_floor_continues_and_the_sample_still_asserts(note
 def test_pmc_m1_prompt_template_follows_the_data_source(notebook, use_byod, form, expected):
     source = _cell(notebook, "PROMPT_TEMPLATE = CT_PROMPT")
     head = source[: source.index("# PMC-M2")]
-    namespace = {"USE_BYOD": use_byod, "BYOD_PROMPT_TEMPLATE": form, "DEFAULT_PROMPT_TEMPLATE": DEFAULT_PROMPT_TEMPLATE}
+    namespace = {"USE_BYOD": use_byod, "BYOD_PROMPT_TEMPLATE": form, "DEFAULT_PROMPT_TEMPLATE": DEFAULT_PROMPT_TEMPLATE, "CT_PROMPT": CT_PROMPT}
     exec(compile(head, "<section 6 prompt>", "exec"), namespace)
     assert namespace["PROMPT_TEMPLATE"] == expected
     with pytest.raises(ValueError, match="must contain"):
@@ -291,10 +293,12 @@ def test_pmc_m1_prompt_template_follows_the_data_source(notebook, use_byod, form
 
 def test_pmc_m5_section_8_names_the_right_lung_and_lists_organs_that_fell(notebook):
     md = _markdown(notebook)
-    assert "right lung's AP fell from 0.79 to 0.34" in md and "`ap_fell`" in md
-    source = _cell(notebook, "delta_map = ")
-    assert "comparison['ap_fell'] = sorted(" in source and "comparison['recall_fell'] = sorted(" in source
+    # R71: the per-organ quote moved to the run that produced it; `ap_fell` / `recall_fell` stay computed.
+    assert "`ap_fell`" in md and "`recall_fell`" in md
+    source = _cell(notebook, "run_settings = ")
+    assert "table['ap_fell'] = sorted(" in source and "table['recall_fell'] = sorted(" in source
 
 
-def test_pmc_s1_declares_notebook_spec_2_2(notebook):
-    assert notebook["metadata"]["dimer"]["notebook_spec"] == "2.2"
+def test_r71_m3_declares_notebook_spec_2_5(notebook):
+    assert notebook["metadata"]["dimer"]["notebook_spec"] == "2.5"
+    assert notebook["metadata"]["dimer"]["notebook_kind"] == "TUTORIAL"

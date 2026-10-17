@@ -10,10 +10,12 @@ from .config import (
 )
 from .metrics import (
     METRIC_DEFINITIONS,
+    apply_embedding_probe,
     average_precision,
     classification_metrics,
     colour_neighbour_baseline,
     colour_signature,
+    fit_embedding_probe,
     majority_baseline,
 )
 from .model import (
@@ -44,6 +46,19 @@ from .pipeline import (
     top1_accuracy,
     validate_inputs,
 )
+from .protocol import (
+    CT_PROMPT,
+    GRID_CONFIGS,
+    GRID_MARGIN,
+    PREREGISTERED_SETTINGS,
+    adapter_mismatch,
+    exploratory_path,
+    look_at_test,
+    output_suffix,
+    run_fingerprint,
+    select_config,
+    settings_differing,
+)
 from .provenance import build_provenance, write_provenance
 from .samples import (
     BYOD_MIN_RECORDS,
@@ -53,6 +68,7 @@ from .samples import (
     CORPUS_NAME,
     CORPUS_RELEASE,
     CORPUS_URL,
+    FRESH_TEST_RECORDS,
     MAX_IMAGE_SIDE,
     MAX_RECORDS,
     MIN_CLASSES,
@@ -61,6 +77,7 @@ from .samples import (
     SAMPLE_RECORDS,
     SAMPLE_SEED,
     SAMPLE_SPLIT,
+    VALIDATION_RECORDS,
     build_sample_dataset,
     byod_split_mode,
     check_split_disjoint,
@@ -70,14 +87,33 @@ from .samples import (
     fetch_sample_dataset,
     image_digest,
     load_byod_dataset,
+    pin_manifest_digest,
     read_corpus,
     source_overlap,
     split_dataset,
+    tutorial_records,
     validate_dataset,
     write_dataset_csv,
 )
 
 __all__ = [
+    "CT_PROMPT",
+    "FRESH_TEST_RECORDS",
+    "GRID_CONFIGS",
+    "GRID_MARGIN",
+    "PREREGISTERED_SETTINGS",
+    "VALIDATION_RECORDS",
+    "adapter_mismatch",
+    "apply_embedding_probe",
+    "exploratory_path",
+    "fit_embedding_probe",
+    "output_suffix",
+    "run_fingerprint",
+    "look_at_test",
+    "pin_manifest_digest",
+    "select_config",
+    "settings_differing",
+    "tutorial_records",
     "ARTIFACT_FORMAT",
     "CORPUS_ARCHIVE_BYTES",
     "CORPUS_ARCHIVE_SHA256",

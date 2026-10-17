@@ -1,0 +1,58 @@
+{
+ "archive_sha256": "a19bae532ac0cf979f7474aba7eb923dc9bbf67c1bcba3cb941dce51a59951e9",
+ "val_seed": 71352,
+ "fresh_seed": 71176,
+ "duplicate_pixel_slices_per_split": {
+  "train": 0,
+  "val": 0,
+  "test": 0
+ },
+ "val_rejected": {
+  "duplicate_pixels": 0,
+  "near_duplicate_of_exposed": 0
+ },
+ "fresh_rejected": {
+  "duplicate_pixels": 0,
+  "near_duplicate_of_exposed": 0
+ },
+ "near_dup_metric": "RMS difference on 56x56 block means (0-255 scale)",
+ "within_test_nn_rms_median_threshold": 14.940570831298828,
+ "within_test_nn_rms_quantiles": {
+  "0.05": 9.56082820892334,
+  "0.25": 12.207548141479492,
+  "0.5": 14.940570831298828,
+  "0.75": 19.513673782348633,
+  "0.95": 32.021080017089844
+ },
+ "fresh_to_exposed_nn_rms_min_median": [
+  18.642446517944336,
+  50.91328811645508
+ ],
+ "n_val": 352,
+ "n_fresh": 176,
+ "scan_order": {
+  "val": {
+   "n": 6491,
+   "adjacent_L1_median": 79.41,
+   "random_L1_median": 77.54,
+   "label_runs": 5766
+  },
+  "test": {
+   "n": 17778,
+   "adjacent_L1_median": 74.36,
+   "random_L1_median": 73.35,
+   "label_runs": 15872,
+   "gap_profile_median_L1": {
+    "1": 74.36,
+    "2": 74.07,
+    "3": 73.87,
+    "5": 75.48,
+    "10": 73.44,
+    "20": 74.16,
+    "50": 75.25,
+    "200": 73.95
+   }
+  }
+ },
+ "note": "Output of the 2026-10-17 draw (scripts later committed as tools/draw_pubmedclip_pins.py; the scan-order block came from its scan_order() step run separately). The near-duplicate guard is a COARSE screen: its threshold is the median within-test nearest-neighbour distance, so about half of any same-scan neighbours lie beyond it. The full fresh-to-exposed distance distribution was not saved by that run (min and median only); re-running the script writes it. Nothing here is a score."
+}
