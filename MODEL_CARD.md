@@ -183,9 +183,13 @@ The snapshot loader (`pubmedclip_pipeline.model.load_components`) enforces stric
 ### Public Inference API
 
 ```python
-from pubmedclip_pipeline import load_pipeline
+from pubmedclip_pipeline import DEFAULT_WEIGHTS_DIR, PubMedClipPipeline
 
-pipe = load_pipeline(device="cpu")
+# Stages the pinned source, audits and converts it once (refused unless the result matches the
+# pinned digest), then strict-loads it. The Hub revision ships no model.safetensors.
+pipe = PubMedClipPipeline.from_pretrained(
+    weights_dir=DEFAULT_WEIGHTS_DIR, device="cpu", allow_download=True
+)
 
 # 1. Zero-shot classification (returns a softmax over the candidate labels)
 scores = pipe.zero_shot_classify(
