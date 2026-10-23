@@ -1,8 +1,10 @@
-from pubmedclip_pipeline import load_pipeline
+from pubmedclip_pipeline import DEFAULT_WEIGHTS_DIR, PubMedClipPipeline
 
 
 def main() -> None:
-    pipe = load_pipeline()
+    # Stages the pinned source, audits and converts it once (refused unless the result matches
+    # the pinned digest), then strict-loads it. The Hub revision ships no model.safetensors.
+    pipe = PubMedClipPipeline.from_pretrained(weights_dir=DEFAULT_WEIGHTS_DIR, allow_download=True)
     scores = pipe.zero_shot_classify(
         "figure.png",
         ["chest X-ray", "brain MRI", "abdominal CT scan"],

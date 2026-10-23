@@ -20,9 +20,11 @@ The wrapper code in this repository is MIT licensed. The model weights retain th
 ## Capabilities
 
 ```python
-from pubmedclip_pipeline import load_pipeline
+from pubmedclip_pipeline import DEFAULT_WEIGHTS_DIR, PubMedClipPipeline
 
-pipe = load_pipeline()
+# Stages the pinned source, audits and converts it once (refused unless the result matches the
+# pinned digest), then strict-loads it. The Hub revision ships no model.safetensors.
+pipe = PubMedClipPipeline.from_pretrained(weights_dir=DEFAULT_WEIGHTS_DIR, allow_download=True)
 
 scores = pipe.zero_shot_classify(
     "scan.png",
@@ -115,9 +117,11 @@ Retrieval is text-to-image retrieval over an in-memory image list. It returns th
 ## Machine-readable provenance
 
 ```python
-from pubmedclip_pipeline import build_provenance, load_pipeline, write_provenance
+from pubmedclip_pipeline import (
+    DEFAULT_WEIGHTS_DIR, PubMedClipPipeline, build_provenance, write_provenance,
+)
 
-pipe = load_pipeline()
+pipe = PubMedClipPipeline.from_pretrained(weights_dir=DEFAULT_WEIGHTS_DIR, allow_download=True)
 record = build_provenance(pipeline=pipe)
 write_provenance("outputs/provenance.json", pipeline=pipe)
 ```
@@ -138,7 +142,7 @@ Remote `http://` and `https://` image strings are rejected intentionally. The pi
 
 `load_pipeline()`:
 
-1. resolves offline weights through `weights_path`, `PUBMEDCLIP_WEIGHTS_DIR`, dev repo `weights/pubmed-clip-vit-base-patch32`, or pinned Hugging Face revision fallback;
+1. resolves offline weights through `weights_path`, `PUBMEDCLIP_WEIGHTS_DIR`, dev repo `weights/pubmed-clip-vit-base-patch32`, or pinned Hugging Face revision fallback (that revision hosts only the pickle source, so the fallback is refused until `model.safetensors` exists — a fresh clone loads through `from_pretrained(weights_dir=...)` below, as the examples above do);
 2. verifies snapshot files against `dimer-base-manifest.json` when present (checking hashes and sizes of configurations, tokenizer files and the pinned PyTorch source);
 3. rejects every unsafe serialized format (`.bin`, `.pt`, `.pth`, `.ckpt`, `.pkl`, `.pickle`, `.h5`, `.msgpack`) except the one pinned `pytorch_model.bin`, which is tolerated only as the digest-verified conversion source and is never passed to transformers;
 4. verifies the exact safetensors byte size and SHA-256 before model load;
