@@ -264,7 +264,7 @@ def test_swp_b_missing_path_and_off_colab_upload_give_clear_messages(notebook, t
     monkeypatch.setitem(sys.modules, "google.colab", None)
     # R71-m4 (DAT20): a refusal is one BYODRefusal message (a ValueError shown without a traceback); earlier files are
     # kept and listed as not from this run.
-    with pytest.raises(ValueError, match="BYOD input refused: BYOD_PATH 'nope.zip' does not exist") as refused:
+    with pytest.raises(ValueError, match="^Refused: nope.zip: BYOD_PATH does not exist") as refused:
         exec(compile(_byod_block(notebook), "<byod>", "exec"), _byod_namespace("nope.zip"))
     assert getattr(refused.value, "dimer_refusal", False) and refused.value._render_traceback_() == [str(refused.value)]
     marker = json.loads((tmp_path / "outputs" / "pubmedclip_biomedical_run_invalidated.json").read_text())
@@ -274,7 +274,7 @@ def test_swp_b_missing_path_and_off_colab_upload_give_clear_messages(notebook, t
         exec(compile(_byod_block(notebook), "<byod>", "exec"), _byod_namespace(""))
 
 
-@pytest.mark.parametrize(("uploaded", "message"), [(None, "Upload exactly one .zip file \\(received 0"), ({"a.zip": b"", "b.zip": b""}, "received 2"), ({"scenes.tar": b""}, "scenes.tar: upload one .zip")])
+@pytest.mark.parametrize(("uploaded", "message"), [(None, "^Refused: \\(no file\\): upload exactly one .zip file \\(received 0"), ({"a.zip": b"", "b.zip": b""}, "^Refused: a.zip, b.zip: upload exactly one .zip file \\(received 2"), ({"scenes.tar": b""}, "^Refused: scenes.tar: upload one .zip")])
 def test_swp_b_cancelled_or_wrong_upload_is_refused(notebook, tmp_path, monkeypatch, uploaded, message):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "outputs").mkdir()

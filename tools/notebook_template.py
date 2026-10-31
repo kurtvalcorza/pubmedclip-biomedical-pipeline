@@ -263,7 +263,7 @@ TEMPLATE = {
                 "    dimer_refusal = True  # the isolated-environment router prints the message alone\n\n"
                 "    def _render_traceback_(self):  # the same when the cell runs in the kernel itself\n"
                 "        return [str(self)]\n\n\n"
-                "def refuse_byod(reason):\n"
+                "def refuse_byod(file_name, reason):\n"
                 "    \"\"\"DAT20: forget the previous data so no later cell reuses it, mark earlier output files as not from this run, and\n"
                 "    return one actionable refusal. Earlier files are kept; the marker says they belong to an earlier run.\"\"\"\n"
                 "    for stale in ('splits', 'dataset_manifests', 'train_records', 'val_records', 'test_records', 'exposed_records', 'dev_records', 'classes'):\n"
@@ -271,16 +271,18 @@ TEMPLATE = {
                 "    earlier = sorted(name for name in os.listdir('outputs') if name.endswith('.json') and not name.endswith('run_invalidated.json'))\n"
                 "    with open('outputs/{stem}_run_invalidated.json', 'w', encoding='utf-8') as handle:\n"
                 "        json.dump({{'reason': str(reason), 'files_from_an_earlier_run': earlier}}, handle, indent=2)\n"
-                "    return BYODRefusal(f'BYOD input refused: {{reason}} Fix the upload or BYOD_PATH and run this cell again. Files already in outputs/ are from an earlier run (listed in outputs/{stem}_run_invalidated.json).')\n\n\n"
+                "    reason = str(reason).removeprefix('BYOD: ').rstrip('.')  # the loader's own prefix is replaced by the file name\n"
+                "    return BYODRefusal(f'Refused: {{file_name}}: {{reason}}. Fix the upload or BYOD_PATH and run this cell again. Files already in outputs/ are from an earlier run (listed in outputs/{stem}_run_invalidated.json).')\n\n\n"
                 "if os.path.exists('outputs/{stem}_run_invalidated.json'):\n"
                 "    os.remove('outputs/{stem}_run_invalidated.json')\n"
                 "if USE_BYOD:\n"
                 "    # A refused input (missing path, wrong file, bad labels.csv, too few images) prints one message; any other error keeps its traceback.\n"
+                "    file_name = BYOD_PATH.strip() or '(no file)'  # the file each refusal names\n"
                 "    try:\n"
                 "        if BYOD_PATH.strip():\n"
                 "            byod_zip = Path(BYOD_PATH.strip()).expanduser()\n"
                 "            if not byod_zip.exists():\n"
-                "                raise FileNotFoundError(f'BYOD_PATH {{BYOD_PATH!r}} does not exist (relative paths start at {{Path.cwd()}}): give a .zip or a folder holding labels.csv and the image files.')\n"
+                "                raise FileNotFoundError(f'BYOD_PATH does not exist (relative paths start at {{Path.cwd()}}): give a .zip or a folder holding labels.csv and the image files.')\n"
                 "            file_name = byod_zip.name\n"
                 "        else:\n"
                 "            try:\n"
@@ -289,22 +291,23 @@ TEMPLATE = {
                 "                raise RuntimeError('USE_BYOD is True but BYOD_PATH is empty, and the upload dialog exists only in Google Colab: on Kaggle or Jupyter put the zip (or folder) in the runtime and set BYOD_PATH to its path.') from None\n"
                 "            uploaded = files.upload() or {{}}\n"
                 "            if len(uploaded) != 1:\n"
-                "                raise ValueError(f'Upload exactly one .zip file (received {{len(uploaded)}}; a cancelled dialog sends none): run this cell again.')\n"
+                "                file_name = ', '.join(uploaded) or '(no file)'\n"
+                "                raise ValueError(f'upload exactly one .zip file (received {{len(uploaded)}}; a cancelled dialog sends none): run this cell again.')\n"
                 "            file_name, payload = next(iter(uploaded.items()))\n"
                 "            if not file_name.lower().endswith('.zip'):\n"
-                "                raise ValueError(f'{{file_name}}: upload one .zip holding labels.csv and the image files.')\n"
+                "                raise ValueError('upload one .zip holding labels.csv and the image files.')\n"
                 "            byod_zip = Path('work') / 'byod.zip'\n"
                 "            byod_zip.parent.mkdir(parents=True, exist_ok=True)\n"
                 "            byod_zip.write_bytes(payload)\n"
                 "    except (FileNotFoundError, RuntimeError, ValueError) as exc:\n"
-                "        raise refuse_byod(exc) from None\n"
+                "        raise refuse_byod(file_name, exc) from None\n"
                 "    try:\n"
                 "        records = load_byod_dataset(byod_zip)\n"
                 "        splits = split_dataset(records, seed=SPLIT_SEED)\n"
                 "        for name, part in splits.items():\n"
                 "            validate_dataset(part, min_records=1)\n"
                 "    except ValueError as exc:\n"
-                "        raise refuse_byod(f'{{file_name}}: {{exc}}.') from None\n"
+                "        raise refuse_byod(file_name, exc) from None\n"
                 "    split_mode = byod_split_mode(records)\n"
                 "    data_source = 'BYOD (' + file_name + ')'\n"
                 "    display_names = {{}}\n"
@@ -937,9 +940,9 @@ TEMPLATE = {
         '`pytorch_model.bin` is not the pinned one. Delete it and run Section 3 again.\n- **Section 7 is very slow** — you are on a 2-vCPU CPU runtime; switch '
         'to a T4 GPU. Lowering `EPOCHS` (or `BATCH_SIZE`, for memory) gives a quick look, but the run becomes exploratory: the fresh test is not scored and the numbers will differ from the recorded run. Turning `RUN_GRID` off saves the three grid adaptations, with the same consequence. The grid always uses the pre-registered batch of 16; if it runs out of memory, use a T4 (or turn `RUN_GRID` off and accept an exploratory run).\n- **BYOD: "BYOD zip must contain labels.csv" or a '
         'label/size refusal** — the message names the rule: a `labels.csv` with columns `id`, `file`, `label`, at least twelve images over at least two labels (six per label), '
-        'sides up to 4096 px.\n- **BYOD: "BYOD_PATH … does not exist"** — the path is relative to the working directory printed in the message.\n- **BYOD: "the '
+        'sides up to 4096 px.\n- **BYOD: "BYOD_PATH does not exist"** — the path is relative to the working directory printed in the message.\n- **BYOD: "the '
         'upload dialog exists only in Google Colab"** — on Kaggle or Jupyter, put the zip (or folder) in the runtime and set `BYOD_PATH` to its path.\n- **BYOD: '
-        '"Upload exactly one .zip file"** — the dialog was cancelled or several files were chosen; run the cell again.\n- **BYOD: "BYOD input refused: …"** — a refused input prints this one message (no traceback) naming the file and the rule; '
+        '"upload exactly one .zip file"** — the dialog was cancelled or several files were chosen; run the cell again.\n- **BYOD: "Refused: <file>: …"** — a refused input prints this one line (no traceback) naming the file and the rule; '
         'files already in `outputs/` are from an earlier run and are listed in `outputs/{stem}_run_invalidated.json`. Fix the input and run Section 4 again.\n'
         '- **Environment variables** — `DIMER_ISOLATED_ENV` moves the isolated environment Section 1 builds (default: a folder named after the lock digest in the '
         'working directory); `PUBMEDCLIP_WEIGHTS_DIR` points the package at an already-staged snapshot when no folder is passed. Neither is needed for Run all.\n\n## Glossary\n\n- **CLIP / PubMedCLIP:** a '
