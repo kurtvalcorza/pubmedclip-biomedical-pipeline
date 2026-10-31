@@ -1,0 +1,86 @@
+[colab] Parsing notebook '<local-run-dir>/pubmedclip_biomedical_colab_7266567_colab-cli-t4.ipynb'...
+[colab] Executing cell 1/17 - Infrastructure: build (or reuse) the isolated environment and route later cells to it...
+{'isolated_environment': '/content/dimer_isolated_env_572ce64ecd34', 'reused': False, 'isolated_python': '3.12.12', 'kernel_python': '3.13.16', 'locked_packages': 47, 'setup_seconds': 67}
+{'routed_to': '/content/dimer_isolated_env_572ce64ecd34/bin/python', 'worker_pid': 1360, 'worker_reused': False}
+[colab] Executing cell 2/17 - Infrastructure: record the runtime...
+{'notebook_source': {'repository': 'pubmedclip-biomedical-pipeline', 'repository_revision': '3457eba29533b625ef93f9a91d581ca6cb8aa97e', 'embedded_module': 'src/pubmedclip_pipeline/config.py', 'embedded_modules': ['src/pubmedclip_pipeline/config.py', 'src/pubmedclip_pipeline/metrics.py', 'src/pubmedclip_pipeline/model.py', 'src/pubmedclip_pipeline/provenance.py', 'src/pubmedclip_pipeline/samples.py', 'src/pubmedclip_pipeline/pipeline.py', 'src/pubmedclip_pipeline/protocol.py'], 'module_sha256': '46afb59e9ea0572e2d067b0e6515c591ecd4adb90628d80735f248c3b773664f', 'generator': 'build_notebook.py/2.2', 'notebook_spec': '2.5'}, 'python': '3.12.12', 'executable': '/content/dimer_isolated_env_572ce64ecd34/bin/python', 'torch': '2.14.0+cu130', 'transformers': '4.57.6', 'numpy': '2.5.3', 'cuda': True}
+[colab] Executing cell 3/17 - pubmedclip_biomedical-08...
+[colab] Executing cell 4/17 - pubmedclip_biomedical-10...
+[colab] Executing cell 5/17 - pubmedclip_biomedical-12...
+[colab] Executing cell 6/17 - pubmedclip_biomedical-14...
+[colab] Executing cell 7/17 - pubmedclip_biomedical-16...
+[colab] Executing cell 8/17 - pubmedclip_biomedical-18...
+[colab] Executing cell 9/17 - pubmedclip_biomedical-20...
+[colab] Executing cell 10/17 - Infrastructure: stage and digest-verify the pinned snapshot, then load the model...
+{'model_id': 'flaviagiammarino/pubmed-clip-vit-base-patch32', 'revision': '26c0c67f6da303ad2a38909130bd35744ea93517', 'license': 'MIT', 'files': 9, 'total_bytes': 608842164}
+{'weights_dir': '/content/weights/pubmed-clip-vit-base-patch32', 'fetched': ['README.md', 'config.json', 'merges.txt', 'preprocessor_config.json', 'pytorch_model.bin', 'special_tokens_map.json', 'tokenizer.json', 'tokenizer_config.json', 'vocab.json']}
+{'verified_files': 9, 'revision': '26c0c67f6da303ad2a38909130bd35744ea93517'}
+{'source': {'path': 'pytorch_model.bin', 'bytes': 605222477, 'sha256': '4daa7650d2b47e55c37b5ca7dcabe826fd82407c26028a574bcc422f35a94aa4'}, 'audit': {'file': 'pytorch_model.bin', 'torch_archive': True, 'pickles': 1, 'globals': ['collections.OrderedDict', 'torch.FloatStorage', 'torch.LongStorage', 'torch._utils._rebuild_tensor_v2'], 'violations': [], 'audit_sha256': '5b9f0ba08490293d6c17b9cef219991e1a6edda31609429679f8dca1af5a7b10'}, 'checkpoint': {'state_dict_tensors': 400, 'dropped_buffers': ['text_model.embeddings.position_ids', 'vision_model.embeddings.position_ids'], 'parameters': 151277313}, 'converted': {'path': 'model.safetensors', 'bytes': 605156676, 'sha256': '81de21a0f1b6a3faaf1ea9e8fed4d570c671808ad72c948b4dac173eabcf676e'}, 'seconds': 12.11}
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+{'device': device(type='cuda'), 'source': 'local-snapshot'}
+[colab] Executing cell 11/17 - pubmedclip_biomedical-24...
+{'role_check': 'train/val/test from their own official splits (MedMNIST splits by scan); fresh and exposed test share no slice, but share the 70 official test scans', 'pin_manifest_sha256': 'fe36f31059f20a95...'}
+{'data_source': 'MedMNIST+ OrganAMNIST, 224 px (axial abdominal CT slices, 11 organs): MedMNIST v3.0, Zenodo record 10519652, organamnist_224.npz (2024-01-18) (CC BY 4.0 (MedMNIST; Yang et al., Scientific Data 2023) — source CT volumes: LiTS)', 'raw_rows': {'slices': 1100, 'slice_bytes': 55193600, 'archive_bytes': 1803859544, 'fetch_seconds': 486.5}, 'split_mode': "the dataset's own scan-level roles", 'splits': {'train': 396, 'validation': 352, 'exposed_dev_test': 176, 'test': 176}, 'source_overlap': {'medmnist_splits_per_role': {'train': ['train'], 'validation': ['val'], 'exposed_dev_test': ['test'], 'test': ['test']}, 'roles_mixing_splits': 0}, 'classes': ['bladder', 'femur-left', 'femur-right', 'heart', 'kidney-left', 'kidney-right', 'liver', 'lung-left', 'lung-right', 'pancreas', 'spleen']}
+{'train': {'n': 396, 'label_counts': {'bladder': 36, 'femur-left': 36, 'femur-right': 36, 'heart': 36, 'kidney-left': 36, 'kidney-right': 36, 'liver': 36, 'lung-left': 36, 'lung-right': 36, 'pancreas': 36, 'spleen': 36}, 'image_side': {'min': 224, 'max': 224}, 'digest': '7d5911e22a5b5a3b...'}}
+{'validation': {'n': 352, 'label_counts': {'bladder': 32, 'femur-left': 32, 'femur-right': 32, 'heart': 32, 'kidney-left': 32, 'kidney-right': 32, 'liver': 32, 'lung-left': 32, 'lung-right': 32, 'pancreas': 32, 'spleen': 32}, 'image_side': {'min': 224, 'max': 224}, 'digest': '92b7d30ee83bd6e4...'}}
+{'exposed_dev_test': {'n': 176, 'label_counts': {'bladder': 16, 'femur-left': 16, 'femur-right': 16, 'heart': 16, 'kidney-left': 16, 'kidney-right': 16, 'liver': 16, 'lung-left': 16, 'lung-right': 16, 'pancreas': 16, 'spleen': 16}, 'image_side': {'min': 224, 'max': 224}, 'digest': '7f769e01f9846dca...'}}
+{'test': {'n': 176, 'label_counts': {'bladder': 16, 'femur-left': 16, 'femur-right': 16, 'heart': 16, 'kidney-left': 16, 'kidney-right': 16, 'liver': 16, 'lung-left': 16, 'lung-right': 16, 'pancreas': 16, 'spleen': 16}, 'image_side': {'min': 224, 'max': 224}, 'digest': 'c598ab2da87d9646...'}}
+{'example': {'id': 'train-000', 'label': 'femur-left', 'display_name': 'left femur', 'size': [224, 224], 'source': 'organamnist_224/train[9297]'}}
+{'probe': 'duplicate id', 'rejected': "duplicate id 'same'"}
+{'probe': 'image over the side ceiling', 'rejected': 'records[0]: image side outside 1..MAX_IMAGE_SIDE=4096 px: (4097, 8)'}
+{'probe': 'one label only', 'rejected': '1 distinct labels; 2..100 are required'}
+{'probe': 'too small', 'rejected': '3 records; 8..20000 are required'}
+[colab] Executing cell 12/17 - pubmedclip_biomedical-27...
+{'ceilings': {'TEXT_MAX_LENGTH': 77, 'DEFAULT_PROMPT_TEMPLATE': 'A medical image of {label}.', 'MAX_IMAGE_SIDE': 4096, 'MIN_RECORDS': 8, 'MAX_RECORDS': 20000, 'MIN_CLASSES': 2, 'image_contract': '224x224 RGB after processor resize and centre crop', 'device': 'cuda'}}
+{'shapes': ['red_square.ppm', 'green_circle.ppm', 'blue_triangle.ppm'], 'sha256': {'red_square.ppm': 'b38ff0c9131677ed...', 'green_circle.ppm': '2e3e657686a0f6a6...', 'blue_triangle.ppm': 'f0f4c38c7af92b3a...'}, 'manifest_verdict': 'accepted', 'findings': 1}
+red_square.ppm -> [('red square', 0.9546), ('abstract geometric shape', 0.0408), ('blue triangle', 0.0044), ('green circle', 0.0003)]
+green_circle.ppm -> [('green circle', 0.7707), ('abstract geometric shape', 0.1791), ('red square', 0.0463), ('blue triangle', 0.0039)]
+blue_triangle.ppm -> [('blue triangle', 0.8587), ('abstract geometric shape', 0.0812), ('red square', 0.06), ('green circle', 0.0002)]
+{'checks': {'one_ranking_per_image': True, 'scores_in_unit_interval': True, 'scores_sum_to_one': True, 'rankings_descending': True, 'embeddings_unit_norm': True}, 'seconds': 2.27, 'frozen_scene': {'top1_accuracy': 1.0, 'recall_at_1': 1.0}, 'verdict': 'sample-sanity'}
+[colab] Executing cell 13/17 - pubmedclip_biomedical-30...
+{'prompt_template': 'An axial abdominal CT slice showing the {label}.', 'model_state': 'pinned base'}
+{'scored_here': 'exposed development test', 'n': 176}
+{'majority_baseline': {'accuracy': 0.091, 'macro_f1': 0.015, 't2i_map': 0.091}, 'n': 176, 'note': "majority floor ('bladder' for every image)"}
+{'intensity_neighbour_baseline': {'accuracy': 0.511, 'macro_f1': 0.502, 't2i_map': 0.519}, 'note': 'colour nearest neighbour (396 training images)'}
+{'frozen_model_exposed_development_test': {'accuracy': 0.182, 'macro_f1': 0.131, 't2i_map': 0.284}, 'n': 176, 'verdict': 'measured', 'prompt_template': 'An axial abdominal CT slice showing the {label}.', 'seconds': 0.9}
+{'definitions': {'accuracy': 'fraction of images whose highest-scoring class prompt is the gold label; in 0..1', 'macro_f1': 'unweighted mean over classes of the F1 of predicting that class; in 0..1', 't2i_map': "mean over class prompts of the average precision of ranking every image by the prompt's score (the class's own images are relevant); in 0..1"}}
+{'by_organ_frozen': {'bladder': {'n': 16, 'recall': 0.06, 'ap': 0.42}, 'femur-left': {'n': 16, 'recall': 0.0, 'ap': 0.06}, 'femur-right': {'n': 16, 'recall': 0.0, 'ap': 0.08}, 'heart': {'n': 16, 'recall': 1.0, 'ap': 0.25}, 'kidney-left': {'n': 16, 'recall': 0.0, 'ap': 0.08}, 'kidney-right': {'n': 16, 'recall': 0.0, 'ap': 0.09}, 'liver': {'n': 16, 'recall': 0.25, 'ap': 0.49}, 'lung-left': {'n': 16, 'recall': 0.0, 'ap': 0.36}, 'lung-right': {'n': 16, 'recall': 0.25, 'ap': 0.79}, 'pancreas': {'n': 16, 'recall': 0.44, 'ap': 0.21}, 'spleen': {'n': 16, 'recall': 0.0, 'ap': 0.29}}}
+{'frozen_embedding_probe': {'ridge': 0.01, 'ridges_tried (validation mAP)': {'10.0': 0.7258, '1.0': 0.8449, '0.1': 0.9389, '0.01': 0.9679, '0.001': 0.9544}, 'validation': {'accuracy': 0.949, 'macro_f1': 0.948, 't2i_map': 0.968}, 'exposed_development_test': {'accuracy': 0.801, 'macro_f1': 0.802, 't2i_map': 0.851}}}
+{'frozen_model_raw_label_prompts': {'accuracy': 0.182, 'macro_f1': 0.096, 't2i_map': 0.34}, 'prompt_template': 'A medical image of {label}.'}
+{'verdict_frozen_vs_majority_floor': {'accuracy': 'above', 't2i_map': 'above'}}
+[colab] Executing cell 14/17 - pubmedclip_biomedical-33...
+{'C0': {'config': {'trainable_vision_layers': 2, 'lr': 5e-05}, 'best_epoch': 2, 'best_val_t2i_map': 0.7716, 'val_t2i_map_by_epoch': [0.296, 0.594, 0.772, 0.71, 0.732, 0.758, 0.675], 'seconds': 25.1}}
+{'C1': {'config': {'trainable_vision_layers': 2, 'lr': 1e-05}, 'best_epoch': 4, 'best_val_t2i_map': 0.6782, 'val_t2i_map_by_epoch': [0.296, 0.5, 0.602, 0.676, 0.678, 0.666, 0.672], 'seconds': 25.6}}
+{'C2': {'config': {'trainable_vision_layers': 4, 'lr': 5e-05}, 'best_epoch': 6, 'best_val_t2i_map': 0.8876, 'val_t2i_map_by_epoch': [0.296, 0.705, 0.76, 0.791, 0.86, 0.858, 0.888], 'seconds': 28.5}}
+{'grid_selection': {'selected': 'C2', 'config': {'trainable_vision_layers': 4, 'lr': 5e-05}, 'adaptation_kept': True, 'reason': 'C2 beat C0 by >= 0.02', 'scores': {'C0': 0.7716, 'C1': 0.6782, 'C2': 0.8876}, 'frozen_val_map': 0.2958, 'margin': 0.02, 'fingerprint': {'data_source': 'pinned sample', 'pin_manifest_sha256': 'fe36f31059f20a95c2663a832410b31b17994e5e8712366f1708cbd53ad4417b', 'split_seed': 42, 'validation_digest': '92b7d30ee83bd6e415a1c5664f54e684bde7a7a2079af270489309e404c973f5', 'epochs': 6, 'batch_size': 16, 'seed': 0, 'prompt_template': 'An axial abdominal CT slice showing the {label}.'}}, 'seconds': 79.2}
+[colab] Executing cell 15/17 - pubmedclip_biomedical-36...
+{'config': 'grid selection', 'lr': 5e-05, 'trainable_vision_layers': 4, 'epochs': 6, 'batch_size': 16, 'seed': 0}
+{'epoch': 0, 'train_loss': None, 'val_accuracy': 0.219, 'val_macro_f1': 0.174, 'val_t2i_map': 0.296, 'note': 'frozen model'}
+{'epoch': 1, 'train_loss': 1.1151, 'val_accuracy': 0.724, 'val_macro_f1': 0.67, 'val_t2i_map': 0.705}
+{'epoch': 2, 'train_loss': 0.3561, 'val_accuracy': 0.926, 'val_macro_f1': 0.926, 'val_t2i_map': 0.76}
+{'epoch': 3, 'train_loss': 0.18, 'val_accuracy': 0.852, 'val_macro_f1': 0.844, 'val_t2i_map': 0.791}
+{'epoch': 4, 'train_loss': 0.0939, 'val_accuracy': 0.943, 'val_macro_f1': 0.943, 'val_t2i_map': 0.86}
+{'epoch': 5, 'train_loss': 0.0546, 'val_accuracy': 0.926, 'val_macro_f1': 0.924, 'val_t2i_map': 0.858}
+{'epoch': 6, 'train_loss': 0.0141, 'val_accuracy': 0.96, 'val_macro_f1': 0.96, 'val_t2i_map': 0.888}
+{'trainable_parameters': 28746240, 'total_parameters': 151277313, 'classes': ['bladder', 'femur-left', 'femur-right', 'heart', 'kidney-left', 'kidney-right', 'liver', 'lung-left', 'lung-right', 'pancreas', 'spleen'], 'best_epoch': 6, 'selection': 'highest validation text-to-image mAP', 'started_from': 'pinned base (restored 67 tensors changed by an earlier run)', 'seconds': 28.1}
+[colab] Executing cell 16/17 - pubmedclip_biomedical-39...
+{'preregistered': True, 'test_look': 'pre-registered evaluation (this runtime)', 'settings_differing': [], 'adaptation_kept': True}
+{'validation': {'adapted': {'accuracy': 0.96, 'macro_f1': 0.96, 't2i_map': 0.888}, 'frozen_embedding_probe': {'accuracy': 0.949, 'macro_f1': 0.948, 't2i_map': 0.968}}, 'n': 352, 'note': 'the configuration and the epoch were chosen on these slices, so these numbers are biased upward'}
+{'development_view': {'label': 'exposed development test', 'n': 176, 'note': 'reported in every run for continuity with earlier records; informs no decision', 'accuracy': {'majority': 0.091, 'neighbour': 0.511, 'frozen_embedding_probe': 0.801, 'frozen': 0.182, 'adapted': 0.869}, 'macro_f1': {'majority': 0.015, 'neighbour': 0.502, 'frozen_embedding_probe': 0.802, 'frozen': 0.131, 'adapted': 0.87}, 't2i_map': {'majority': 0.091, 'neighbour': 0.519, 'frozen_embedding_probe': 0.851, 'frozen': 0.284, 'adapted': 0.821}, 'verdict': {'adapted_vs_frozen_t2i_map': 'improved', 'frozen_vs_majority_floor': {'accuracy': 'above', 't2i_map': 'above'}}}}
+{'fresh_test': {'n': 176, 'accuracy': {'majority': 0.091, 'neighbour': 0.619, 'frozen_embedding_probe': 0.824, 'frozen': 0.165, 'adapted': 0.881}, 'macro_f1': {'majority': 0.015, 'neighbour': 0.61, 'frozen_embedding_probe': 0.819, 'frozen': 0.127, 'adapted': 0.881}, 't2i_map': {'majority': 0.091, 'neighbour': 0.538, 'frozen_embedding_probe': 0.885, 'frozen': 0.248, 'adapted': 0.862}, 'verdict': {'adapted_vs_frozen_t2i_map': 'improved', 'frozen_vs_majority_floor': {'accuracy': 'above', 't2i_map': 'above'}}}}
+{'raw_label_prompts': {'accuracy': {'frozen': 0.176, 'adapted': 0.864}, 'macro_f1': {'frozen': 0.087, 'adapted': 0.866}, 't2i_map': {'frozen': 0.328, 'adapted': 0.91}}}
+{'delta_vs_frozen': {'accuracy': 0.716, 'macro_f1': 0.754, 't2i_map': 0.614}}
+{'ap_fell': ['lung-right']}
+{'recall_fell': []}
+{'by_organ': {'bladder': {'n': 16, 'frozen_recall': 0.06, 'adapted_recall': 0.88, 'frozen_ap': 0.27, 'adapted_ap': 0.88}, 'femur-left': {'n': 16, 'frozen_recall': 0.0, 'adapted_recall': 0.88, 'frozen_ap': 0.06, 'adapted_ap': 0.91}, 'femur-right': {'n': 16, 'frozen_recall': 0.0, 'adapted_recall': 0.88, 'frozen_ap': 0.09, 'adapted_ap': 0.72}, 'heart': {'n': 16, 'frozen_recall': 0.94, 'adapted_recall': 1.0, 'frozen_ap': 0.18, 'adapted_ap': 1.0}, 'kidney-left': {'n': 16, 'frozen_recall': 0.0, 'adapted_recall': 0.75, 'frozen_ap': 0.07, 'adapted_ap': 0.58}, 'kidney-right': {'n': 16, 'frozen_recall': 0.06, 'adapted_recall': 0.69, 'frozen_ap': 0.16, 'adapted_ap': 0.94}, 'liver': {'n': 16, 'frozen_recall': 0.25, 'adapted_recall': 1.0, 'frozen_ap': 0.55, 'adapted_ap': 0.95}, 'lung-left': {'n': 16, 'frozen_recall': 0.0, 'adapted_recall': 0.94, 'frozen_ap': 0.35, 'adapted_ap': 1.0}, 'lung-right': {'n': 16, 'frozen_recall': 0.19, 'adapted_recall': 0.94, 'frozen_ap': 0.71, 'adapted_ap': 0.64}, 'pancreas': {'n': 16, 'frozen_recall': 0.31, 'adapted_recall': 1.0, 'frozen_ap': 0.11, 'adapted_ap': 0.91}, 'spleen': {'n': 16, 'frozen_recall': 0.0, 'adapted_recall': 0.75, 'frozen_ap': 0.17, 'adapted_ap': 0.95}}}
+{'report': 'outputs/pubmedclip_biomedical_evaluation_report.json', 'test_look': 'pre-registered evaluation (this runtime)', 'relation_to_record': 'reproduction of the pre-registered evaluation'}
+[colab] Executing cell 17/17 - pubmedclip_biomedical-42...
+{'image': 'red_square.ppm', 'frozen': [('red square', 0.955), ('abstract geometric shape', 0.041)], 'adapted': [('red square', 0.99), ('abstract geometric shape', 0.01)]}
+{'image': 'green_circle.ppm', 'frozen': [('green circle', 0.771), ('abstract geometric shape', 0.179)], 'adapted': [('green circle', 0.976), ('abstract geometric shape', 0.022)]}
+{'image': 'blue_triangle.ppm', 'frozen': [('blue triangle', 0.859), ('abstract geometric shape', 0.081)], 'adapted': [('blue triangle', 0.951), ('abstract geometric shape', 0.026)]}
+{'scene_after_adaptation': {'top1_accuracy': 1.0, 'recall_at_1': 1.0}, 'verdict': 'sample-sanity'}
+{'artifact_role': 'the adapted model'}
+{'artifact': 'outputs/pubmedclip_biomedical_adapter', 'format': 'org.valcorza.pubmed-clip-vit-base-patch32.adapter.v1', 'tensors': 67, 'bytes': 114992888, 'sha256': 'cafc28fb34e14307...'}
+{'reload_parity': {'max_abs_difference': 0.0, 'identical_rows': 8, 'of': 8}, 'reloaded_best_epoch': 6}
+['provenance.json', 'pubmedclip_biomedical_adapter', 'pubmedclip_biomedical_evaluation_report.json', 'pubmedclip_biomedical_grid.json', 'pubmedclip_biomedical_input_manifest.json', 'pubmedclip_biomedical_result.json', 'pubmedclip_biomedical_shapes.json', 'pubmedclip_biomedical_train.csv', 'sample-data']
+[colab] Saving notebook with outputs to '<local-run-dir>/pubmedclip_biomedical_colab_7266567_colab-cli-t4_output.ipynb'...
